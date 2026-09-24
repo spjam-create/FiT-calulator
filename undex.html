@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FiT Analysis Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+
+    <div id="app" class="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
+        
+        <!-- Header -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-blue-900">FiT Investment Model</h1>
+                <p class="text-sm text-gray-500 mt-1">เครื่องมือจำลองอัตราผลตอบแทนและรับซื้อไฟฟ้า (FiTx & FiTv)</p>
+            </div>
+            <div class="w-full md:w-1/3">
+                <label class="text-xs font-semibold text-gray-500 uppercase">เลือกแม่แบบ (Template)</label>
+                <select id="templateSelect" onchange="handleSelectTemplate(this.value)" class="mt-1 w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    <!-- Templates injected via JS -->
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Left Column: Parameters Input -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6">
+                
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 gap-3">
+                    <h2 class="text-lg font-bold text-gray-700">ปรับแต่งตัวแปรสมมติฐาน</h2>
+                    <div class="flex bg-gray-100 p-1 rounded-lg">
+                        <button id="btnModeFitx" onclick="setCalcMode('FIND_FITX')" class="px-4 py-1 text-sm rounded-md transition-all font-semibold bg-white shadow-sm text-blue-600">
+                            หาค่า FiT เป้าหมาย
+                        </button>
+                        <button id="btnModeIrr" onclick="setCalcMode('FIND_IRR')" class="px-4 py-1 text-sm rounded-md transition-all text-gray-500 hover:text-gray-700">
+                            หาค่า IRR ปัจจุบัน
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Slider Grids -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    
+                    <div class="space-y-1">
+                        <div class="flex justify-between"><label class="text-sm font-medium">Capex (THB/W)</label><span id="disp-capex" class="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">0</span></div>
+                        <input type="range" id="range-capex" min="10" max="150" step="0.1" oninput="handleParamChange('capex', this.value)" class="w-full accent-blue-600"/>
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between"><label class="text-sm font-medium">Opex (%)</label><span id="disp-opex" class="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">0</span></div>
+                        <input type="range" id="range-opex" min="0" max="15" step="0.01" oninput="handleParamChange('opex', this.value)" class="w-full accent-blue-600"/>
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between"><label class="text-sm font-medium">Interest Rate (%)</label><span id="disp-interest" class="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">0</span></div>
+                        <input type="range" id="range-interest" min="1" max="12" step="0.1" oninput="handleParamChange('interest', this.value)" class="w-full accent-blue-600"/>
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between"><label class="text-sm font-medium">Plant Factor (%)</label><span id="disp-pf" class="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">0</span></div>
+                        <input type="range" id="range-pf" min="10" max="100" step="0.1" oninput="handleParamChange('pf', this.value)" class="w-full accent-blue-600"/>
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between"><label class="text-sm font-medium">Debt Ratio (%)</label><span id="disp-debt" class="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">0</span></div>
+                        <input type="range" id="range-debt" min="0" max="100" step="1" oninput="handleParamChange('debt', this.value)" class="w-full accent-blue-600"/>
+                    </div>
+                    
+                    <div class="space-y-1">
+                        <div class="flex justify-between"><label class="text-sm font-medium">Project Life (Years)</label><span id="disp-life" class="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">0</span></div>
+                        <input type="range" id="range-life" min="10" max="30" step="1" oninput="handleParamChange('life', this.value)" class="w-full accent-blue-600"/>
+                    </div>
+                </div>
+
+                <!-- Exact Number Inputs -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
+                    <div>
+                        <label class="text-xs text-gray-500 font-semibold">Target Eq.IRR (%)</label>
+                        <input type="number" id="input-eqIRR" onchange="handleParamChange('eqIRR', this.value)" class="mt-1 w-full p-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500"/>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 font-semibold">Target Proj.IRR (%)</label>
+                        <input type="number" id="input-projIRR" onchange="handleParamChange('projIRR', this.value)" class="mt-1 w-full p-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500"/>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 font-semibold">Tax Rate (%)</label>
+                        <input type="number" id="input-tax" onchange="handleParamChange('tax', this.value)" class="mt-1 w-full p-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500"/>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 font-semibold">Tax Holiday (Yrs)</label>
+                        <input type="number" id="input-hol1" onchange="handleParamChange('hol1', this.value)" class="mt-1 w-full p-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500"/>
+                    </div>
+                </div>
+                
+                <div id="overrideContainer" class="p-4 bg-orange-50 rounded-lg border border-orange-200 hidden">
+                    <label class="text-sm font-bold text-orange-800">ล็อคค่า Total FiT (THB/kWh) เพื่อดู IRR ปัจจุบัน</label>
+                    <input type="number" step="0.0001" id="input-overrideFiT" onchange="setOverrideFiT(this.value)" class="mt-2 w-full max-w-xs p-2 border border-orange-300 rounded text-sm shadow-sm outline-none focus:ring-1 focus:ring-orange-500" />
+                </div>
+
+            </div>
+
+            <!-- Right Column: Output & Action -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col space-y-6">
+                <h2 class="text-lg font-bold text-gray-700">ผลการคำนวณ (Results)</h2>
+                
+                <div class="bg-gradient-to-br from-blue-600 to-blue-800 text-white p-6 rounded-xl shadow-md text-center">
+                    <span class="text-blue-100 text-sm uppercase tracking-wider font-semibold">Total FiT (THB/kWh)</span>
+                    <div id="res-totalFit" class="text-4xl font-black mt-1 drop-shadow-md">0.0000</div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-center">
+                        <div class="text-[11px] text-gray-500 font-bold uppercase tracking-wide">FiTx (Investment)</div>
+                        <div id="res-fitx" class="text-xl font-black text-gray-800 mt-1">0.0000</div>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-center">
+                        <div class="text-[11px] text-gray-500 font-bold uppercase tracking-wide">FiTv (Fuel)</div>
+                        <div id="res-fitv" class="text-xl font-black text-gray-800 mt-1">0.0000</div>
+                    </div>
+                    <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-center">
+                        <div class="text-[11px] text-emerald-700 font-bold uppercase tracking-wide">Project IRR</div>
+                        <div id="res-projIRR" class="text-xl font-black text-emerald-800 mt-1">0.00%</div>
+                    </div>
+                    <div class="p-3 bg-indigo-50 rounded-lg border border-indigo-200 text-center">
+                        <div class="text-[11px] text-indigo-700 font-bold uppercase tracking-wide">Equity IRR</div>
+                        <div id="res-eqIRR" class="text-xl font-black text-indigo-800 mt-1">0.00%</div>
+                    </div>
+                </div>
+
+                <div class="mt-auto pt-4 space-y-3">
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        <label class="text-xs text-gray-600 font-bold uppercase mb-1.5 block">กำหนดชื่อเคสของคุณ</label>
+                        <input type="text" id="input-customName" placeholder="พิมพ์ชื่อ Case ที่ต้องการบันทึก..." class="w-full p-2.5 border border-gray-300 rounded bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"/>
+                    </div>
+
+                    <div id="errorMsg" class="p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs font-bold text-center rounded-lg hidden animate-pulse"></div>
+
+                    <button onclick="saveCase()" class="w-full py-3.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-md transition-all flex justify-center items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                        บันทึกเปรียบเทียบ (Save Case)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Table -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h2 id="tableHeading" class="text-lg font-bold text-gray-700 flex items-center gap-2">ตารางเปรียบเทียบข้อมูล (0/10)</h2>
+                <div id="exportBtnContainer"></div>
+            </div>
+            
+            <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <table class="w-full text-left text-sm text-gray-700 whitespace-nowrap">
+                    <thead class="bg-gray-50 text-gray-600 text-xs uppercase font-bold border-b border-gray-200">
+                        <tr>
+                            <th class="px-4 py-4">ประเภท / ชื่อโครงการ</th>
+                            <th class="px-4 py-4 text-right">Capex</th>
+                            <th class="px-4 py-4 text-right">FiTx</th>
+                            <th class="px-4 py-4 text-right">FiTv</th>
+                            <th class="px-4 py-4 text-right text-blue-700">Total FiT</th>
+                            <th class="px-4 py-4 text-right">Proj. IRR</th>
+                            <th class="px-4 py-4 text-right">Eq. IRR</th>
+                            <th class="px-4 py-4 text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparisonTableBody" class="divide-y divide-gray-100">
+                        <tr>
+                            <td colspan="8" class="px-4 py-12 text-center text-gray-400">ยังไม่มีข้อมูลเปรียบเทียบ กด "บันทึกเปรียบเทียบ" ด้านบนเพื่อเพิ่มข้อมูล</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const defaultTemplates = [
+            { id: 1, group: "Solar", name: "ปี 2556 Solar Rooftop | บ้านอยู่อาศัย", cap_kw: 10, capex: 63.7, opex: 0.68, pf: 14.84, deg: -1.0, life: 25, debt: 50, interest: 7.0, term: 8, tax: 10, hol1: 0, hol2: 0, infl: 2.5, projIRR: 10.7, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 2, group: "Solar", name: "ปี 2556 Solar Rooftop | อาคารธุรกิจขนาดเล็ก", cap_kw: 250, capex: 58.4, opex: 0.60, pf: 14.84, deg: -1.0, life: 25, debt: 50, interest: 7.0, term: 8, tax: 15, hol1: 0, hol2: 0, infl: 2.5, projIRR: 10.7, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 3, group: "Solar", name: "ปี 2556 Solar Rooftop | อาคารธุรกิจขนาดใหญ่/โรงงาน", cap_kw: 1000, capex: 58.2, opex: 0.57, pf: 14.84, deg: -1.0, life: 25, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 10.4, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 4, group: "Solar", name: "ปี 2557 Solar Rooftop | บ้านอยู่อาศัย", cap_kw: 10, capex: 62.4, opex: 0.69, pf: 14.84, deg: -1.0, life: 25, debt: 50, interest: 7.0, term: 8, tax: 10, hol1: 0, hol2: 0, infl: 2.5, projIRR: 10.7, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 5, group: "Solar", name: "ปี 2557 Solar Rooftop | อาคารธุรกิจขนาดเล็ก", cap_kw: 250, capex: 57.0, opex: 0.62, pf: 14.84, deg: -1.0, life: 25, debt: 50, interest: 7.0, term: 8, tax: 15, hol1: 0, hol2: 0, infl: 2.5, projIRR: 10.7, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 6, group: "Solar", name: "ปี 2557 Solar Rooftop | อาคารธุรกิจขนาดใหญ่/โรงงาน", cap_kw: 1000, capex: 56.8, opex: 0.59, pf: 14.84, deg: -1.0, life: 25, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 10.4, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 7, group: "Solar", name: "ปี 2557 Solar Ground mount", cap_kw: 90000, capex: 54.0, opex: 2.0, pf: 16, deg: -0.8, life: 25, debt: 70, interest: 6.5, term: 10, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 9.5, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 8, group: "Solar", name: "ปี 2559 Solar Ground mount", cap_kw: 90000, capex: 42.2, opex: 2.0, pf: 16, deg: -0.8, life: 25, debt: 70, interest: 6.5, term: 10, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 8.5, eqIRR: 10, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 9, group: "Solar", name: "ปี 2562 Solar ชุมชนเพื่อเศรษฐกิจฐานราก", cap_kw: 10000, capex: 26.0, opex: 2.0, pf: 16, deg: -0.8, life: 25, debt: 70, interest: 6.5, term: 10, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10, eqIRR: 13, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 10, group: "Solar", name: "ปี 2565 RE Biglot | Solar Ground mount", cap_kw: 90000, capex: 25.8, opex: 1.5, pf: 16, deg: 0, life: 25, debt: 70, interest: 6.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 8, eqIRR: 9, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 11, group: "Solar", name: "ปี 2565 RE Biglot | Solar+BESS", cap_kw: 90000, capex: 47.5, opex: 1.5, pf: 34.1667, deg: 0, life: 25, debt: 70, interest: 6.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 8, eqIRR: null, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 12, group: "Wind", name: "ปี 2557 | VSPP", cap_kw: 10000, capex: 64.0, opex: 2.0, pf: 18, deg: 0, life: 25, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 10.3, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 13, group: "Wind", name: "ปี 2565 | RE Biglot", cap_kw: 90000, capex: 54.7, opex: 2.0, pf: 25, deg: 0, life: 25, debt: 60, interest: 6.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 8, eqIRR: 8.8, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 14, group: "Hydro", name: "ปี 2557 | VSPP (Hydro)", cap_kw: 200, capex: 99.5, opex: 4.0, pf: 41, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 10.7, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 15, group: "Biomass", name: "ปี 2557 | VSPP เปลี่ยนผ่าน Adder (≤ 1 MW)", cap_kw: 1000, capex: 90.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 13.1, eqIRR: 16.0, fuelCost: 121, heatRate: 18250, premium: 0.50, premYrs: 8 },
+            { id: 16, group: "Biomass", name: "ปี 2557 | VSPP เปลี่ยนผ่าน Adder (>1-3 MW)", cap_kw: 3000, capex: 75.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 13.0, eqIRR: 17.3, fuelCost: 121, heatRate: 18250, premium: 0.40, premYrs: 8 },
+            { id: 17, group: "Biomass", name: "ปี 2557 | VSPP เปลี่ยนผ่าน Adder (>3-10 MW)", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 12.2, eqIRR: 15.7, fuelCost: 121, heatRate: 15295, premium: 0.30, premYrs: 8 },
+            { id: 18, group: "Biomass", name: "ปี 2560 | VSPP ชีวมวลประชารัฐ (≤ 3 MW)", cap_kw: 3000, capex: 78.513, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 12.0, eqIRR: 15.0, fuelCost: 121, heatRate: 18250, premium: 0, premYrs: 0 },
+            { id: 19, group: "Biomass", name: "ปี 2560 | VSPP ชีวมวลประชารัฐ (>3-10 MW)", cap_kw: 10000, capex: 78.513, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 11.0, eqIRR: 13.3, fuelCost: 121, heatRate: 15295, premium: 0, premYrs: 0 },
+            { id: 20, group: "Biomass", name: "ปี 2560 | VSPP Semi-firm (≤ 3 MW)", cap_kw: 3000, capex: 75.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 13.0, eqIRR: 17.3, fuelCost: 121, heatRate: 18250, premium: 0.40, premYrs: 8 },
+            { id: 21, group: "Biomass", name: "ปี 2560 | VSPP Semi-firm (>3-10 MW)", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 12.2, eqIRR: 15.7, fuelCost: 121, heatRate: 15295, premium: 0.30, premYrs: 8 },
+            { id: 22, group: "Biomass", name: "ปี 2560 | SPP Hybrid Firm", cap_kw: 50000, capex: 65.0, opex: 6.0, pf: 80, deg: 0, life: 20, debt: 70, interest: 6.5, term: 10, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.0, eqIRR: 13.5, fuelCost: 121, heatRate: 15295, premium: 0, premYrs: 0 },
+            { id: 23, group: "Biomass", name: "ปี 2562 | VSPP รฟ.ชุมชน (≤ 3 MW)", cap_kw: 3000, capex: 75.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.1, eqIRR: 11.8, fuelCost: 121, heatRate: 18497.5, premium: 0, premYrs: 0 },
+            { id: 24, group: "Biomass", name: "ปี 2562 | VSPP รฟ.ชุมชน (>3-10 MW)", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.1, eqIRR: 11.8, fuelCost: 121, heatRate: 15484.3, premium: 0, premYrs: 0 },
+            { id: 25, group: "Biogas", name: "ปี 2557 VSPP | น้ำเสีย/ของเสีย", cap_kw: 10000, capex: 126.0, opex: 5.0, pf: 70, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 12.1, eqIRR: 14.3, fuelCost: 0, heatRate: 10526, premium: 0.50, premYrs: 8 },
+            { id: 26, group: "Biogas", name: "ปี 2557 VSPP | พืชพลังงาน", cap_kw: 10000, capex: 100.0, opex: 5.0, pf: 78, deg: 0, life: 20, debt: 50, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 13.2, eqIRR: 16.6, fuelCost: 242.25, heatRate: 10526, premium: 0.50, premYrs: 8 },
+            { id: 27, group: "Biogas", name: "ปี 2560 VSPP Semi-firm | น้ำเสีย/ของเสีย", cap_kw: 10000, capex: 126.0, opex: 5.0, pf: 70, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 12.1, eqIRR: 14.3, fuelCost: 0, heatRate: 10526, premium: 0.50, premYrs: 8 },
+            { id: 28, group: "Biogas", name: "ปี 2560 VSPP Semi-firm | พืชพลังงาน", cap_kw: 10000, capex: 100.0, opex: 5.0, pf: 78, deg: 0, life: 20, debt: 50, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 13.3, eqIRR: 16.5, fuelCost: 242.25, heatRate: 10526, premium: 0.50, premYrs: 8 },
+            { id: 29, group: "Biogas", name: "ปี 2562 รฟ.ชุมชน | น้ำเสีย/ของเสีย", cap_kw: 10000, capex: 126.0, opex: 5.0, pf: 70, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.0, eqIRR: 11.0, fuelCost: 0, heatRate: 10526, premium: 0, premYrs: 0 },
+            { id: 30, group: "Biogas", name: "ปี 2562 รฟ.ชุมชน | พืชพลังงาน 100%", cap_kw: 10000, capex: 100.0, opex: 5.0, pf: 78, deg: 0, life: 20, debt: 50, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.1, eqIRR: 11.5, fuelCost: 245.34, heatRate: 10526, premium: 0, premYrs: 0 },
+            { id: 31, group: "Biogas", name: "ปี 2562 รฟ.ชุมชน | พืชพลังงาน+น้ำเสีย", cap_kw: 10000, capex: 100.0, opex: 5.0, pf: 78, deg: 0, life: 20, debt: 50, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.1, eqIRR: 11.5, fuelCost: 184.01, heatRate: 10526, premium: 0, premYrs: 0 },
+            { id: 32, group: "Biogas", name: "ปี 2565 RE Biglot | น้ำเสีย/ของเสีย", cap_kw: 90000, capex: 70.0, opex: 7.5, pf: 75, deg: 0, life: 20, debt: 50, interest: 6.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 0, projIRR: 8.0, eqIRR: 8.7, fuelCost: 0, heatRate: 9468, premium: 0, premYrs: 0 },
+            { id: 33, group: "MSW", name: "ปี 2557 | RDF/Thermal (≤ 1 MW)", cap_kw: 1000, capex: 90.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 14.4, eqIRR: 18.3, fuelCost: 176, heatRate: 18250, premium: 0.70, premYrs: 8 },
+            { id: 34, group: "MSW", name: "ปี 2557 | RDF/Thermal (>1-3 MW)", cap_kw: 3000, capex: 75.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.4, eqIRR: 22.2, fuelCost: 176, heatRate: 18250, premium: 0.70, premYrs: 8 },
+            { id: 35, group: "MSW", name: "ปี 2557 | RDF/Thermal (>3-10 MW)", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.3, eqIRR: 21.9, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 },
+            { id: 36, group: "MSW", name: "ปี 2557 | Landfill (≤ 10 MW)", cap_kw: 10000, capex: 75.0, opex: 12.5, pf: 60, deg: 0, life: 10, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 13.6, eqIRR: 21.4, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 37, group: "MSW", name: "ปี 2565 RE Biglot | VSPP", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.3, eqIRR: 21.9, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 },
+            { id: 38, group: "MSW", name: "ปี 2565 RE Biglot | SPP", cap_kw: 50000, capex: 65.0, opex: 6.0, pf: 80, deg: 0, life: 20, debt: 70, interest: 6.5, term: 10, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.0, eqIRR: 13.5, fuelCost: 121, heatRate: 15295, premium: 0, premYrs: 0 },
+            { id: 39, group: "Industrial Waste", name: "ปี 2558 | ต่อยอด", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.3, eqIRR: 21.9, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 },
+            { id: 40, group: "Industrial Waste", name: "ปี 2558 | ใหม่", cap_kw: 10000, capex: 100.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.5, eqIRR: 22.0, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 },
+            { id: 41, group: "Industrial Waste", name: "ปี 2558 | ใหม่+พลาสม่า", cap_kw: 10000, capex: 100.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 22.7, eqIRR: 37.0, fuelCost: 176, heatRate: 15295, premium: 1.70, premYrs: 8 },
+            { id: 42, group: "Industrial Waste", name: "ปี 2565 | RE Biglot (Ind. Waste)", cap_kw: 10000, capex: 100.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.5, eqIRR: 22.0, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 }
+        ];
+
+        let currentParams = { ...defaultTemplates[0] };
+        let calcMode = "FIND_FITX";
+        let overrideFiT = 6.96;
+        let savedCases = JSON.parse(localStorage.getItem("fitSavedCases") || "[]");
+
+        // Helper Math Functions
+        const pmt = (rate, nper, pv) => {
+            if (rate === 0) return -pv / nper;
+            return (pv * rate * Math.pow(1 + rate, nper)) / (1 - Math.pow(1 + rate, nper));
+        };
+
+        const calcIRR = (cashFlows, guess = 0.1) => {
+            const npv = (rate) => cashFlows.reduce((acc, val, i) => acc + val / Math.pow(1 + rate, i), 0);
+            let rate = guess;
+            for (let i = 0; i < 100; i++) {
+                let currentNPV = npv(rate);
+                if (Math.abs(currentNPV) < 0.0001) return rate;
+                let dNpv = cashFlows.reduce((acc, val, i) => acc - (i * val) / Math.pow(1 + rate, i + 1), 0);
+                if (dNpv === 0) break;
+                rate = rate - currentNPV / dNpv;
+            }
+            return rate;
+        };
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            const selectEl = document.getElementById('templateSelect');
+            defaultTemplates.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.innerText = `[${t.group}] ${t.name}`;
+                selectEl.appendChild(opt);
+            });
+            document.getElementById('input-customName').value = currentParams.name;
+            updateUIValues();
+            renderTable();
+        });
+
+        function handleSelectTemplate(id) {
+            const t = defaultTemplates.find(x => x.id === parseInt(id));
+            if (t) {
+                currentParams = { ...t };
+                document.getElementById('input-customName').value = t.name;
+                updateUIValues();
+            }
+        }
+
+        function handleParamChange(field, value) {
+            currentParams[field] = parseFloat(value) || 0;
+            updateUIValues();
+        }
+
+        function setCalcMode(mode) {
+            calcMode = mode;
+            const btnFitx = document.getElementById('btnModeFitx');
+            const btnIrr = document.getElementById('btnModeIrr');
+            const container = document.getElementById('overrideContainer');
+
+            if (mode === "FIND_FITX") {
+                btnFitx.className = "px-4 py-1 text-sm rounded-md transition-all font-semibold bg-white shadow-sm text-blue-600";
+                btnIrr.className = "px-4 py-1 text-sm rounded-md transition-all text-gray-500 hover:text-gray-700";
+                container.classList.add("hidden");
+            } else {
+                btnIrr.className = "px-4 py-1 text-sm rounded-md transition-all font-semibold bg-white shadow-sm text-blue-600";
+                btnFitx.className = "px-4 py-1 text-sm rounded-md transition-all text-gray-500 hover:text-gray-700";
+                container.classList.remove("hidden");
+            }
+            updateUIValues();
+        }
+
+        function setOverrideFiT(val) {
+            overrideFiT = parseFloat(val) || 0;
+            updateUIValues();
+        }
+
+        // Calculation Engine
+        function runCalculations() {
+            const { cap_kw, capex, opex, pf, deg, life, debt, interest, term, tax, hol1, hol2, infl, fuelCost, heatRate, premium, premYrs, eqIRR, projIRR } = currentParams;
+
+            const capex_mthb = (cap_kw * capex) / 1000;
+            const debt_mthb = capex_mthb * (debt / 100);
+            const equity_mthb = capex_mthb - debt_mthb;
+            const opex_mthb_yr0 = capex_mthb * (opex / 100);
+            const energy_yr1_mwh = cap_kw * (pf / 100) * 8760 / 1000;
+            const fitv = (fuelCost * heatRate) / 1000000;
+
+            const generateCF = (testFiTx) => {
+                let projCF = [-capex_mthb];
+                let eqCF = [-equity_mthb];
+                let remDebt = debt_mthb;
+                const loanPmt = pmt(interest / 100, term, -debt_mthb);
+
+                for (let y = 1; y <= life; y++) {
+                    const currentEnergy = energy_yr1_mwh * Math.pow(1 + (deg / 100), y - 1);
+                    const currentPrem = y <= premYrs ? premium : 0;
+                    const totalFit = testFiTx + fitv + currentPrem;
+                    const rev_mthb = (currentEnergy * totalFit) / 1000;
+                    const opex_y = opex_mthb_yr0 * Math.pow(1 + (infl / 100), y);
+                    const depr_y = capex_mthb / life;
+
+                    let int_y = 0;
+                    let prin_y = 0;
+                    if (y <= term) {
+                        int_y = remDebt * (interest / 100);
+                        prin_y = loanPmt - int_y;
+                        remDebt -= prin_y;
+                    }
+
+                    let taxRate = tax / 100;
+                    if (y <= hol1) taxRate = 0;
+                    else if (y <= hol1 + hol2) taxRate = (tax / 100) / 2;
+
+                    const ebit = rev_mthb - opex_y - depr_y;
+                    const taxProject = Math.max(0, ebit) * taxRate;
+                    const taxEquity = Math.max(0, ebit - int_y) * taxRate;
+
+                    projCF.push(rev_mthb - opex_y - taxProject);
+                    eqCF.push(rev_mthb - opex_y - int_y - prin_y - taxEquity);
+                }
+                return { projCF, eqCF };
+            };
+
+            let finalFiTx = 0;
+            let currentProjIRR = 0;
+            let currentEqIRR = 0;
+
+            if (calcMode === "FIND_FITX") {
+                const useEq = eqIRR !== null && eqIRR > 0;
+                const targetRate = useEq ? eqIRR / 100 : projIRR / 100;
+                
+                let low = 0, high = 20;
+                for (let i = 0; i < 40; i++) {
+                    let mid = (low + high) / 2;
+                    let cfs = generateCF(mid);
+                    let irr = calcIRR(useEq ? cfs.eqCF : cfs.projCF);
+                    if (irr > targetRate) high = mid;
+                    else low = mid;
+                }
+                finalFiTx = (low + high) / 2;
+                const finalCFs = generateCF(finalFiTx);
+                currentProjIRR = calcIRR(finalCFs.projCF) * 100;
+                currentEqIRR = calcIRR(finalCFs.eqCF) * 100;
+            } else {
+                finalFiTx = overrideFiT - fitv - premium;
+                const finalCFs = generateCF(finalFiTx);
+                currentProjIRR = calcIRR(finalCFs.projCF) * 100;
+                currentEqIRR = calcIRR(finalCFs.eqCF) * 100;
+            }
+
+            return {
+                fitx: finalFiTx,
+                fitv: fitv,
+                totalFiT: finalFiTx + fitv + premium,
+                projIRR: currentProjIRR,
+                eqIRR: currentEqIRR
+            };
+        }
+
+        function updateUIValueElement(id, val, isRange = false) {
+            document.getElementById(`range-${id}`).value = val;
+            document.getElementById(`disp-${id}`).innerText = val;
+        }
+
+        function updateUIValues() {
+            // Update inputs
+            updateUIValueElement('capex', currentParams.capex);
+            updateUIValueElement('opex', currentParams.opex);
+            updateUIValueElement('interest', currentParams.interest);
+            updateUIValueElement('pf', currentParams.pf);
+            updateUIValueElement('debt', currentParams.debt);
+            updateUIValueElement('life', currentParams.life);
+
+            document.getElementById('input-eqIRR').value = currentParams.eqIRR ?? '';
+            document.getElementById('input-projIRR').value = currentParams.projIRR;
+            document.getElementById('input-tax').value = currentParams.tax;
+            document.getElementById('input-hol1').value = currentParams.hol1;
+
+            const res = runCalculations();
+
+            document.getElementById('res-totalFit').innerText = res.totalFiT.toFixed(4);
+            document.getElementById('res-fitx').innerText = res.fitx.toFixed(4);
+            document.getElementById('res-fitv').innerText = res.fitv.toFixed(4);
+            document.getElementById('res-projIRR').innerText = res.projIRR.toFixed(2) + '%';
+            document.getElementById('res-eqIRR').innerText = (Number.isFinite(res.eqIRR) ? res.eqIRR.toFixed(2) : '-') + '%';
+        }
+
+        function saveCase() {
+            if (savedCases.length >= 10) {
+                showError("⚠️ สามารถบันทึกเปรียบเทียบได้สูงสุด 10 รายการ กรุณาลบรายการเก่าออกก่อน");
+                return;
+            }
+            
+            const customName = document.getElementById('input-customName').value.trim();
+            const finalName = customName === "" ? currentParams.name : customName;
+            const res = runCalculations();
+
+            const newCase = {
+                id: Date.now(),
+                name: finalName,
+                group: currentParams.group,
+                capex: currentParams.capex,
+                opex: currentParams.opex,
+                fitx: res.fitx.toFixed(4),
+                fitv: res.fitv.toFixed(4),
+                total: res.totalFiT.toFixed(4),
+                projIRR: res.projIRR.toFixed(2),
+                eqIRR: Number.isFinite(res.eqIRR) ? res.eqIRR.toFixed(2) : '-'
+            };
+            
+            savedCases.push(newCase);
+            localStorage.setItem("fitSavedCases", JSON.stringify(savedCases));
+            hideError();
+            renderTable();
+        }
+
+        function removeCase(id) {
+            savedCases = savedCases.filter(c => c.id !== id);
+            localStorage.setItem("fitSavedCases", JSON.stringify(savedCases));
+            renderTable();
+        }
+
+        function showError(msg) {
+            const errEl = document.getElementById('errorMsg');
+            errEl.innerText = msg;
+            errEl.classList.remove('hidden');
+            setTimeout(() => hideError(), 4000);
+        }
+
+        function hideError() {
+            document.getElementById('errorMsg').classList.add('hidden');
+        }
+
+        function exportCSV() {
+            const headers = ['Case Name', 'Group', 'Capex (THB/W)', 'Opex (%)', 'FiTx', 'FiTv', 'Total FiT', 'Project IRR (%)', 'Equity IRR (%)'];
+            const rows = savedCases.map(c => [`"${c.name}"`, `"${c.group}"`, c.capex, c.opex, c.fitx, c.fitv, c.total, c.projIRR, c.eqIRR]);
+            const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "FiT_Comparison_Export.csv";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('comparisonTableBody');
+            const heading = document.getElementById('tableHeading');
+            const exportContainer = document.getElementById('exportBtnContainer');
+            
+            heading.innerText = `ตารางเปรียบเทียบข้อมูล (${savedCases.length}/10)`;
+
+            if (savedCases.length > 0) {
+                exportContainer.innerHTML = `<button onclick="exportCSV()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg shadow-sm transition-colors flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>ดาวน์โหลด Excel (CSV)</button>`;
+            } else {
+                exportContainer.innerHTML = '';
+            }
+
+            if (savedCases.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-12 text-center text-gray-400"><div class="flex flex-col items-center gap-2"><svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg><span>ยังไม่มีข้อมูลเปรียบเทียบ กด "บันทึกเปรียบเทียบ" ด้านบนเพื่อเพิ่มข้อมูล</span></div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = savedCases.map(c => `
+                <tr class="hover:bg-blue-50/50 transition-colors">
+                    <td class="px-4 py-3 font-medium text-gray-800"><span class="text-[10px] bg-gray-200 text-gray-600 px-2 py-1 rounded-md mr-2">${c.group}</span>${c.name}</td>
+                    <td class="px-4 py-3 text-right">${c.capex}</td>
+                    <td class="px-4 py-3 text-right text-gray-500">${c.fitx}</td>
+                    <td class="px-4 py-3 text-right text-gray-500">${c.fitv}</td>
+                    <td class="px-4 py-3 text-right text-blue-700 font-black bg-blue-50/30">${c.total}</td>
+                    <td class="px-4 py-3 text-right font-semibold text-emerald-600">${c.projIRR}%</td>
+                    <td class="px-4 py-3 text-right font-semibold text-indigo-600">${c.eqIRR}%</td>
+                    <td class="px-4 py-3 text-center">
+                        <button onclick="removeCase(${c.id})" class="p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors" title="ลบข้อมูลนี้">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
