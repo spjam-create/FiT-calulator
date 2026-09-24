@@ -305,6 +305,7 @@
 
     <script>
         const rawTemplates = [
+            // 1) พลังงานแสงอาทิตย์ (Solar)
             { id: 1, group: "Solar", name: "ปี 2556 Solar Rooftop | บ้านอยู่อาศัย", cap_kw: 10, capex: 63.7, opex: 0.68, pf: 14.84, deg: -1.0, life: 25, debt: 50, interest: 7.0, term: 8, tax: 10, hol1: 0, hol2: 0, infl: 2.5, projIRR: 10.7, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
             { id: 2, group: "Solar", name: "ปี 2556 Solar Rooftop | อาคารธุรกิจขนาดเล็ก", cap_kw: 250, capex: 58.4, opex: 0.60, pf: 14.84, deg: -1.0, life: 25, debt: 50, interest: 7.0, term: 8, tax: 15, hol1: 0, hol2: 0, infl: 2.5, projIRR: 10.7, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
             { id: 3, group: "Solar", name: "ปี 2556 Solar Rooftop | อาคารธุรกิจขนาดใหญ่/โรงงาน", cap_kw: 1000, capex: 58.2, opex: 0.57, pf: 14.84, deg: -1.0, life: 25, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 10.4, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
@@ -316,37 +317,50 @@
             { id: 9, group: "Solar", name: "ปี 2562 Solar ชุมชนเพื่อเศรษฐกิจฐานราก", cap_kw: 10000, capex: 26.0, opex: 2.0, pf: 16, deg: -0.8, life: 25, debt: 70, interest: 6.5, term: 10, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10, eqIRR: 13, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
             { id: 10, group: "Solar", name: "ปี 2565 RE Biglot | Solar Ground mount", cap_kw: 90000, capex: 25.8, opex: 1.5, pf: 16, deg: 0, life: 25, debt: 70, interest: 6.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 8, eqIRR: 9, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
             { id: 11, group: "Solar", name: "ปี 2565 RE Biglot | Solar+BESS", cap_kw: 90000, capex: 47.5, opex: 1.5, pf: 34.1667, deg: 0, life: 25, debt: 70, interest: 6.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 8, eqIRR: null, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+
+            // 2) พลังงานลม (Wind)
             { id: 12, group: "Wind", name: "ปี 2557 | VSPP", cap_kw: 10000, capex: 64.0, opex: 2.0, pf: 18, deg: 0, life: 25, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 10.3, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
             { id: 13, group: "Wind", name: "ปี 2565 | RE Biglot", cap_kw: 90000, capex: 54.7, opex: 2.0, pf: 25, deg: 0, life: 25, debt: 60, interest: 6.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 8, eqIRR: 8.8, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+
+            // 3) พลังน้ำขนาดเล็ก (Hydro)
             { id: 14, group: "Hydro", name: "ปี 2557 | VSPP (Hydro)", cap_kw: 200, capex: 99.5, opex: 4.0, pf: 41, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 10.7, eqIRR: 12, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
-            { id: 15, group: "Biomass", name: "ปี 2557 | VSPP เปลี่ยนผ่าน Adder (≤ 1 MW)", cap_kw: 1000, capex: 90.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 13.1, eqIRR: 16.0, fuelCost: 121, heatRate: 18250, premium: 0.50, premYrs: 8 },
-            { id: 16, group: "Biomass", name: "ปี 2557 | VSPP เปลี่ยนผ่าน Adder (>1-3 MW)", cap_kw: 3000, capex: 75.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 13.0, eqIRR: 17.3, fuelCost: 121, heatRate: 18250, premium: 0.40, premYrs: 8 },
-            { id: 17, group: "Biomass", name: "ปี 2557 | VSPP เปลี่ยนผ่าน Adder (>3-10 MW)", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 12.2, eqIRR: 15.7, fuelCost: 121, heatRate: 15295, premium: 0.30, premYrs: 8 },
-            { id: 18, group: "Biomass", name: "ปี 2560 | VSPP ชีวมวลประชารัฐ (≤ 3 MW)", cap_kw: 3000, capex: 78.513, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 12.0, eqIRR: 15.0, fuelCost: 121, heatRate: 18250, premium: 0, premYrs: 0 },
-            { id: 19, group: "Biomass", name: "ปี 2560 | VSPP ชีวมวลประชารัฐ (>3-10 MW)", cap_kw: 10000, capex: 78.513, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 11.0, eqIRR: 13.3, fuelCost: 121, heatRate: 15295, premium: 0, premYrs: 0 },
-            { id: 20, group: "Biomass", name: "ปี 2560 | VSPP Semi-firm (≤ 3 MW)", cap_kw: 3000, capex: 75.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 13.0, eqIRR: 17.3, fuelCost: 121, heatRate: 18250, premium: 0.40, premYrs: 8 },
-            { id: 21, group: "Biomass", name: "ปี 2560 | VSPP Semi-firm (>3-10 MW)", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 12.2, eqIRR: 15.7, fuelCost: 121, heatRate: 15295, premium: 0.30, premYrs: 8 },
-            { id: 22, group: "Biomass", name: "ปี 2560 | SPP Hybrid Firm", cap_kw: 50000, capex: 65.0, opex: 6.0, pf: 80, deg: 0, life: 20, debt: 70, interest: 6.5, term: 10, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.0, eqIRR: 13.5, fuelCost: 121, heatRate: 15295, premium: 0, premYrs: 0 },
-            { id: 23, group: "Biomass", name: "ปี 2562 | VSPP รฟ.ชุมชน (≤ 3 MW)", cap_kw: 3000, capex: 75.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.1, eqIRR: 11.8, fuelCost: 121, heatRate: 18497.5, premium: 0, premYrs: 0 },
-            { id: 24, group: "Biomass", name: "ปี 2562 | VSPP รฟ.ชุมชน (>3-10 MW)", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.1, eqIRR: 11.8, fuelCost: 121, heatRate: 15484.3, premium: 0, premYrs: 0 },
+
+            // 4) เชื้อเพลิงชีวมวล (Biomass)
+            { id: 15, group: "Biomass", name: "ปี 2557 | VSPP เปลี่ยนผ่าน Adder เป็น FiT | ขนาด ≤ 1 MW", cap_kw: 1000, capex: 90.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 13.1, eqIRR: 16.0, fuelCost: 121, heatRate: 18250, premium: 0.50, premYrs: 8 },
+            { id: 16, group: "Biomass", name: "ปี 2557 | VSPP เปลี่ยนผ่าน Adder เป็น FiT | ขนาด >1-3 MW", cap_kw: 3000, capex: 75.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 13.0, eqIRR: 17.3, fuelCost: 121, heatRate: 18250, premium: 0.40, premYrs: 8 },
+            { id: 17, group: "Biomass", name: "ปี 2557 | VSPP เปลี่ยนผ่าน Adder เป็น FiT | ขนาด >3-10 MW", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 12.2, eqIRR: 15.7, fuelCost: 121, heatRate: 15295, premium: 0.30, premYrs: 8 },
+            { id: 18, group: "Biomass", name: "ปี 2560 | VSPP ชีวมวลประชารัฐ | ขนาด ≤ 3 MW", cap_kw: 3000, capex: 78.513, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 12.0, eqIRR: 15.0, fuelCost: 121, heatRate: 18250, premium: 0, premYrs: 0 },
+            { id: 19, group: "Biomass", name: "ปี 2560 | VSPP ชีวมวลประชารัฐ | ขนาด >3-10 MW", cap_kw: 10000, capex: 78.513, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 11.0, eqIRR: 13.3, fuelCost: 121, heatRate: 15295, premium: 0, premYrs: 0 },
+            { id: 20, group: "Biomass", name: "ปี 2560 | VSPP Semi-firm | ขนาด ≤ 3 MW", cap_kw: 3000, capex: 75.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 13.0, eqIRR: 17.3, fuelCost: 121, heatRate: 18250, premium: 0.40, premYrs: 8 },
+            { id: 21, group: "Biomass", name: "ปี 2560 | VSPP Semi-firm | ขนาด >3-10 MW", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 12.2, eqIRR: 15.7, fuelCost: 121, heatRate: 15295, premium: 0.30, premYrs: 8 },
+            { id: 22, group: "Biomass", name: "ปี 2560 | SPP Hybrid Firm | ขนาด >10-90 MW", cap_kw: 50000, capex: 65.0, opex: 6.0, pf: 80, deg: 0, life: 20, debt: 70, interest: 6.5, term: 10, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.0, eqIRR: 13.5, fuelCost: 121, heatRate: 15295, premium: 0, premYrs: 0 },
+            { id: 23, group: "Biomass", name: "ปี 2562 | VSPP รฟ.ชุมชนเพื่อเศรษฐกิจฐานราก | ขนาด ≤ 3 MW", cap_kw: 3000, capex: 75.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.1, eqIRR: 11.8, fuelCost: 121, heatRate: 18497.5, premium: 0, premYrs: 0 },
+            { id: 24, group: "Biomass", name: "ปี 2562 | VSPP รฟ.ชุมชนเพื่อเศรษฐกิจฐานราก | ขนาด >3-10 MW", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.1, eqIRR: 11.8, fuelCost: 121, heatRate: 15484.3, premium: 0, premYrs: 0 },
+
+            // 5) เชื้อเพลิงก๊าซชีวภาพ (Biogas)
             { id: 25, group: "Biogas", name: "ปี 2557 VSPP | น้ำเสีย/ของเสีย", cap_kw: 10000, capex: 126.0, opex: 5.0, pf: 70, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 12.1, eqIRR: 14.3, fuelCost: 0, heatRate: 10526, premium: 0.50, premYrs: 8 },
-            { id: 26, group: "Biogas", name: "ปี 2557 VSPP | พืชพลังงาน", cap_kw: 10000, capex: 100.0, opex: 5.0, pf: 78, deg: 0, life: 20, debt: 50, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 13.2, eqIRR: 16.6, fuelCost: 242.25, heatRate: 10526, premium: 0.50, premYrs: 8 },
+            { id: 26, group: "Biogas", name: "ปี 2557 VSPP | พืชพลังงาน", cap_kw: 10000, capex: 100.0, opex: 5.0, pf: 78, deg: 0, life: 20, debt: 50, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 13.2, eqIRR: 16.6, fuelCost: 500, heatRate: 10526, premium: 0.50, premYrs: 8 },
             { id: 27, group: "Biogas", name: "ปี 2560 VSPP Semi-firm | น้ำเสีย/ของเสีย", cap_kw: 10000, capex: 126.0, opex: 5.0, pf: 70, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 12.1, eqIRR: 14.3, fuelCost: 0, heatRate: 10526, premium: 0.50, premYrs: 8 },
-            { id: 28, group: "Biogas", name: "ปี 2560 VSPP Semi-firm | พืชพลังงาน", cap_kw: 10000, capex: 100.0, opex: 5.0, pf: 78, deg: 0, life: 20, debt: 50, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 13.3, eqIRR: 16.5, fuelCost: 242.25, heatRate: 10526, premium: 0.50, premYrs: 8 },
-            { id: 29, group: "Biogas", name: "ปี 2562 รฟ.ชุมชน | น้ำเสีย/ของเสีย", cap_kw: 10000, capex: 126.0, opex: 5.0, pf: 70, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.0, eqIRR: 11.0, fuelCost: 0, heatRate: 10526, premium: 0, premYrs: 0 },
-            { id: 30, group: "Biogas", name: "ปี 2562 รฟ.ชุมชน | พืชพลังงาน 100%", cap_kw: 10000, capex: 100.0, opex: 5.0, pf: 78, deg: 0, life: 20, debt: 50, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.1, eqIRR: 11.5, fuelCost: 245.34, heatRate: 10526, premium: 0, premYrs: 0 },
-            { id: 31, group: "Biogas", name: "ปี 2562 รฟ.ชุมชน | พืชพลังงาน+น้ำเสีย", cap_kw: 10000, capex: 100.0, opex: 5.0, pf: 78, deg: 0, life: 20, debt: 50, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.1, eqIRR: 11.5, fuelCost: 184.01, heatRate: 10526, premium: 0, premYrs: 0 },
+            { id: 28, group: "Biogas", name: "ปี 2560 VSPP Semi-firm | พืชพลังงาน", cap_kw: 10000, capex: 100.0, opex: 5.0, pf: 78, deg: 0, life: 20, debt: 50, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 13.3, eqIRR: 16.5, fuelCost: 500, heatRate: 10526, premium: 0.50, premYrs: 8 },
+            { id: 29, group: "Biogas", name: "ปี 2562 รฟ.ชุมชนเพื่อเศรษฐกิจฐานราก | น้ำเสีย/ของเสีย", cap_kw: 10000, capex: 126.0, opex: 5.0, pf: 70, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.0, eqIRR: 11.0, fuelCost: 0, heatRate: 10526, premium: 0, premYrs: 0 },
+            { id: 30, group: "Biogas", name: "ปี 2562 รฟ.ชุมชนเพื่อเศรษฐกิจฐานราก | พืชพลังงาน 100%", cap_kw: 10000, capex: 100.0, opex: 5.0, pf: 78, deg: 0, life: 20, debt: 50, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.1, eqIRR: 11.5, fuelCost: 500, heatRate: 10526, premium: 0, premYrs: 0 },
+            { id: 31, group: "Biogas", name: "ปี 2562 รฟ.ชุมชนเพื่อเศรษฐกิจฐานราก | พืชพลังงาน+น้ำเสีย/ของเสีย ≤ 25%", cap_kw: 10000, capex: 100.0, opex: 5.0, pf: 78, deg: 0, life: 20, debt: 50, interest: 7.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.1, eqIRR: 11.5, fuelCost: 500, heatRate: 10526, premium: 0, premYrs: 0 },
             { id: 32, group: "Biogas", name: "ปี 2565 RE Biglot | น้ำเสีย/ของเสีย", cap_kw: 90000, capex: 70.0, opex: 7.5, pf: 75, deg: 0, life: 20, debt: 50, interest: 6.0, term: 8, tax: 20, hol1: 8, hol2: 0, infl: 0, projIRR: 8.0, eqIRR: 8.7, fuelCost: 0, heatRate: 9468, premium: 0, premYrs: 0 },
-            { id: 33, group: "MSW", name: "ปี 2557 | RDF/Thermal (≤ 1 MW)", cap_kw: 1000, capex: 90.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 14.4, eqIRR: 18.3, fuelCost: 176, heatRate: 18250, premium: 0.70, premYrs: 8 },
-            { id: 34, group: "MSW", name: "ปี 2557 | RDF/Thermal (>1-3 MW)", cap_kw: 3000, capex: 75.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.4, eqIRR: 22.2, fuelCost: 176, heatRate: 18250, premium: 0.70, premYrs: 8 },
-            { id: 35, group: "MSW", name: "ปี 2557 | RDF/Thermal (>3-10 MW)", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.3, eqIRR: 21.9, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 },
-            { id: 36, group: "MSW", name: "ปี 2557 | Landfill (≤ 10 MW)", cap_kw: 10000, capex: 75.0, opex: 12.5, pf: 60, deg: 0, life: 10, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 13.6, eqIRR: 21.4, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
-            { id: 37, group: "MSW", name: "ปี 2565 RE Biglot | VSPP", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.3, eqIRR: 21.9, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 },
-            { id: 38, group: "MSW", name: "ปี 2565 RE Biglot | SPP", cap_kw: 50000, capex: 65.0, opex: 6.0, pf: 80, deg: 0, life: 20, debt: 70, interest: 6.5, term: 10, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.0, eqIRR: 13.5, fuelCost: 121, heatRate: 15295, premium: 0, premYrs: 0 },
-            { id: 39, group: "Industrial Waste", name: "ปี 2558 | ต่อยอด", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.3, eqIRR: 21.9, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 },
-            { id: 40, group: "Industrial Waste", name: "ปี 2558 | ใหม่", cap_kw: 10000, capex: 100.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.5, eqIRR: 22.0, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 },
-            { id: 41, group: "Industrial Waste", name: "ปี 2558 | ใหม่+พลาสม่า", cap_kw: 10000, capex: 100.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 22.7, eqIRR: 37.0, fuelCost: 176, heatRate: 15295, premium: 1.70, premYrs: 8 },
-            { id: 42, group: "Industrial Waste", name: "ปี 2565 | RE Biglot (Ind. Waste)", cap_kw: 10000, capex: 100.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.5, eqIRR: 22.0, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 }
+
+            // 6) เชื้อเพลิงขยะชุมชน (MSW)
+            { id: 33, group: "MSW", name: "ปี 2557 | RDF/Thermal | ขนาด ≤ 1 MW", cap_kw: 1000, capex: 90.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 50, interest: 7.5, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 14.4, eqIRR: 18.3, fuelCost: 176, heatRate: 18250, premium: 0.70, premYrs: 8 },
+            { id: 34, group: "MSW", name: "ปี 2557 | RDF/Thermal | ขนาด >1-3 MW", cap_kw: 3000, capex: 75.0, opex: 7.5, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.4, eqIRR: 22.2, fuelCost: 176, heatRate: 18250, premium: 0.70, premYrs: 8 },
+            { id: 35, group: "MSW", name: "ปี 2557 | RDF/Thermal | ขนาด >3-10 MW", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.3, eqIRR: 21.9, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 },
+            { id: 36, group: "MSW", name: "ปี 2557 | Landfill | ขนาด ≤ 10 MW", cap_kw: 10000, capex: 75.0, opex: 12.5, pf: 60, deg: 0, life: 10, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 13.6, eqIRR: 21.4, fuelCost: 0, heatRate: 0, premium: 0, premYrs: 0 },
+            { id: 37, group: "MSW", name: "ปี 2560 | SPP | ขนาด >10-50 MW", cap_kw: 50000, capex: 65.0, opex: 6.0, pf: 80, deg: 0, life: 20, debt: 70, interest: 6.5, term: 10, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.0, eqIRR: 13.5, fuelCost: 121, heatRate: 15295, premium: 0, premYrs: 0 },
+            { id: 38, group: "MSW", name: "ปี 2565 RE Biglot | VSPP | ขนาด ≤ 10 MW", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.3, eqIRR: 21.9, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 },
+            { id: 39, group: "MSW", name: "ปี 2565 RE Biglot | SPP | ขนาด >10-50 MW", cap_kw: 50000, capex: 65.0, opex: 6.0, pf: 80, deg: 0, life: 20, debt: 70, interest: 6.5, term: 10, tax: 20, hol1: 8, hol2: 0, infl: 2.5, projIRR: 10.0, eqIRR: 13.5, fuelCost: 121, heatRate: 15295, premium: 0, premYrs: 0 },
+
+            // 7) เชื้อเพลิงขยะอุตสาหกรรม (Industrial Waste)
+            { id: 40, group: "Industrial Waste", name: "ปี 2558 | ต่อยอด", cap_kw: 10000, capex: 75.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.3, eqIRR: 21.9, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 },
+            { id: 41, group: "Industrial Waste", name: "ปี 2558 | ใหม่", cap_kw: 10000, capex: 100.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.5, eqIRR: 22.0, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 },
+            { id: 42, group: "Industrial Waste", name: "ปี 2558 | ใหม่+พลาสม่า", cap_kw: 10000, capex: 100.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 22.7, eqIRR: 37.0, fuelCost: 176, heatRate: 15295, premium: 1.70, premYrs: 8 },
+            { id: 43, group: "Industrial Waste", name: "ปี 2565 | RE Biglot", cap_kw: 10000, capex: 100.0, opex: 6.0, pf: 70, deg: 0, life: 20, debt: 60, interest: 7.0, term: 8, tax: 30, hol1: 8, hol2: 5, infl: 2.5, projIRR: 15.5, eqIRR: 22.0, fuelCost: 176, heatRate: 15295, premium: 0.70, premYrs: 8 }
         ];
 
         // Format raw templates into precise structure required by new inputs
@@ -357,7 +371,7 @@
                 ...t,
                 capex_mthb: capex_mthb,
                 opex_mthb: opex_mthb,
-                other_cost: 0, // Default missing variables
+                other_cost: 0,
                 tipping_fee: 0,
                 tipping_growth: 0,
                 reinvest: 0,
@@ -465,7 +479,6 @@
             const energy_yr1_mwh = cap_kw * (pf / 100) * 8760 / 1000;
             const fitv = (fuelCost * heatRate) / 1000000;
             
-            // Reinvestment point (assume halfway if specified)
             const reinvest_yr = Math.floor(life / 2);
 
             const generateCF = (testFiTx) => {
@@ -518,13 +531,12 @@
                     projCF.push(pCF);
                     eqCF.push(eCF);
 
-                    // LCOE components (Costs PV and Energy PV)
                     const cost_y = opex_y + other_y + reinvest_y + taxProject;
                     npv_cost += cost_y / Math.pow(1 + discR, y);
                     npv_energy += currentEnergy / Math.pow(1 + discR, y);
                 }
                 
-                const lcoe = (npv_cost * 1000) / npv_energy; // THB/kWh
+                const lcoe = (npv_cost * 1000) / npv_energy;
                 return { projCF, eqCF, lcoe };
             };
 
@@ -540,7 +552,6 @@
                     let mid = (low + high) / 2;
                     let cfs = generateCF(mid);
                     let irr = calcIRR(useEq ? cfs.eqCF : cfs.projCF);
-                    // if irr is null (cannot calculate), fallback
                     if (irr !== null && irr > targetRate) high = mid;
                     else low = mid;
                 }
@@ -577,7 +588,6 @@
         }
 
         function updateUIValues() {
-            // Update pure inputs
             setInputValue('inp-cap_kw', currentParams.cap_kw);
             setInputValue('inp-pf', currentParams.pf);
             setInputValue('inp-life', currentParams.life);
@@ -600,16 +610,13 @@
             setInputValue('inp-projIRR', currentParams.projIRR);
             setInputValue('inp-eqIRR', currentParams.eqIRR ?? '');
 
-            // Waste specific visibility
             const isWaste = currentParams.group === "MSW" || currentParams.group === "Industrial Waste";
             const wasteContainer = document.getElementById('waste-inputs');
             if (isWaste) wasteContainer.classList.remove('hidden');
             else wasteContainer.classList.add('hidden');
 
-            // Calculate and display results
             const res = runCalculations();
             
-            // Derived displays
             document.getElementById('disp-energy').value = res.energyYr1.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
             document.getElementById('disp-debtMthb').value = res.debtMthb.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
             document.getElementById('disp-equityMthb').value = res.equityMthb.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -617,9 +624,8 @@
             const deRatioStr = currentParams.debt === 100 ? "100/0" : currentParams.debt === 0 ? "0/100" : `${(currentParams.debt / (100 - currentParams.debt)).toFixed(2)} : 1`;
             document.getElementById('disp-deRatio').innerText = deRatioStr;
 
-            // Result Panel
             document.getElementById('res-totalFit').innerText = res.totalFiT.toFixed(4);
-            document.getElementById('res-period').innerText = currentParams.premYrs || currentParams.life; // Simplify tariff period display
+            document.getElementById('res-period').innerText = currentParams.premYrs || currentParams.life;
             document.getElementById('res-fitx').innerText = res.fitx.toFixed(4);
             document.getElementById('res-fitv').innerText = res.fitv.toFixed(4);
             
