@@ -1,0 +1,2237 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FiT Calculator — Energy Financial Model</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+ body{font-family:'Sarabun',sans-serif} .num{font-variant-numeric:tabular-nums} .custom-scrollbar::-webkit-scrollbar{height:8px} .custom-scrollbar::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px}
+.td{padding:.5rem .75rem;text-align:right;border-left:1px solid #e2e8f0}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+<div id="app" class="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
+  <header class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col lg:flex-row justify-between gap-4 lg:items-end">
+    <div>
+      <div class="text-xs font-bold tracking-widest text-blue-600 uppercase">Energy Financial Model</div>
+      <h1 class="text-2xl md:text-3xl font-black text-slate-900 mt-1">FiT Calculator</h1>
+    </div>
+    <div class="w-full lg:w-[460px]">
+      <label class="text-xs font-semibold text-slate-500 uppercase">เลือกแม่แบบ (Template)</label>
+      <select id="templateSelect" onchange="selectTemplate(this.value)" class="mt-1 w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium"></select>
+    </div>
+  </header>
+
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+    <section class="xl:col-span-8 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+      <div class="flex justify-end border-b pb-4">
+        <div class="flex bg-slate-100 p-1 rounded-lg">
+          <button id="btnModeFitx" onclick="setCalcMode('FIND_FITX')" class="px-4 py-1.5 text-sm rounded-md font-semibold bg-white shadow-sm text-blue-600">หา FiT เป้าหมาย</button>
+          <button id="btnModeIrr" onclick="setCalcMode('FIND_IRR')" class="px-4 py-1.5 text-sm rounded-md text-slate-500 font-medium">หา IRR จาก FiT</button>
+        </div>
+      </div>
+
+      <div id="overrideContainer" class="p-4 bg-orange-50 rounded-xl border border-orange-200 hidden">
+        <label class="text-sm font-bold text-orange-800">Total FiT (THB/kWh)</label>
+        <input type="number" step="0.0001" id="input-overrideFiT" onchange="setOverrideFiT(this.value)" class="mt-2 w-full max-w-xs p-2 border border-orange-300 rounded-lg text-sm bg-white" />
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="space-y-4">
+          <h3 class="font-bold text-blue-800 bg-blue-50 py-2 px-3 rounded-lg border-l-4 border-blue-500">Technical Assumptions</h3>
+          <div class="grid grid-cols-2 gap-4">
+            
+            <div><label class="lbl">Installed Capacity (kW)</label><input id="inp-cap_kw" type="number" step="0.01" onchange="param('cap_kw',this.value)" class="inp"></div>
+            <div><label class="lbl">Plant Factor (%)</label><input id="inp-pf" type="number" step="0.0001" onchange="param('pf',this.value)" class="inp"></div>
+            <div><label class="lbl">CAPEX (THB/W)</label><input id="inp-capex" type="number" step="0.001" onchange="param('capex',this.value)" class="inp font-bold text-blue-700"></div>
+            <div><label class="lbl">Investment Cost (MTHB)</label><input id="disp-capexMthb" disabled class="inp bg-slate-100"></div>
+            <div><label class="lbl">O&M (% of CAPEX/yr)</label><input id="inp-opexPct" type="number" step="0.001" onchange="param('opexPct',this.value)" class="inp"></div>
+            <div><label class="lbl">O&M Yr.0 (MTHB/yr)</label><input id="disp-opexMthb" disabled class="inp bg-slate-100"></div>
+            <div><label class="lbl">Project Life (yr)</label><input id="inp-life" type="number" onchange="param('life',this.value)" class="inp"></div>
+            <div><label class="lbl">Degradation (%)</label><input id="inp-deg" type="number" step="0.01" onchange="param('deg',this.value)" class="inp"></div>
+            <div class="col-span-2"><label class="lbl">Electricity Exported Yr.1 (MWh)</label><input id="disp-energy" disabled class="inp bg-slate-100 font-semibold"></div>
+          </div>
+
+          <div class="p-3 bg-cyan-50 border border-cyan-200 rounded-xl space-y-3">
+            <div class="text-xs font-bold text-cyan-800 uppercase">Fuel / FiT-V</div>
+            <div class="grid grid-cols-2 gap-4">
+              <div><label class="lbl">Fuel Cost</label><input id="inp-fuelCost" type="number" step="0.0001" onchange="fuelParam('fuelCost',this.value)" class="inp bg-white"></div>
+              <div><label class="lbl">Fuel Cost Unit</label><select id="inp-fuelUnit" onchange="fuelUnitChange(this.value)" class="inp bg-white"><option value="-">-</option><option value="THB/GJ">THB/GJ</option><option value="THB/ton">THB/ton</option></select></div>
+              <div><label class="lbl">Net Heat Rate (kJ/kWh)</label><input id="inp-heatRate" type="number" step="0.01" onchange="fuelParam('heatRate',this.value)" class="inp bg-white"></div>
+              <div><label class="lbl">FiT-V Override (THB/kWh)</label><input id="inp-fitvOverride" type="number" step="0.0001" onchange="fitvOverrideChange(this.value)" placeholder="ว่าง = Auto" class="inp bg-white"></div>
+            </div>
+            <p id="fitvHint" class="text-[11px] text-cyan-800"></p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="lbl">Other Cost (MTHB/yr)</label><input id="inp-other_cost" type="number" step="0.01" onchange="param('other_cost',this.value)" class="inp"></div>
+            <div><label class="lbl">Other Cost Growth (%)</label><input id="inp-other_growth" type="number" step="0.01" onchange="param('other_growth',this.value)" class="inp"></div>
+            <div><label class="lbl">Reinvestment @ Year 11 (MTHB)</label><input id="inp-reinvest" type="number" step="0.01" onchange="param('reinvest',this.value)" class="inp"></div>
+            <div><label class="lbl">FiT Premium (THB/kWh)</label><input id="inp-premium" type="number" step="0.0001" onchange="param('premium',this.value)" class="inp"></div>
+            <div><label class="lbl">Premium Period (yr)</label><input id="inp-premYrs" type="number" onchange="param('premYrs',this.value)" class="inp"></div>
+          </div>
+
+          <div id="wasteInputs" class="p-3 bg-amber-50 border border-amber-200 rounded-xl hidden">
+            <div class="text-xs font-bold text-amber-800 uppercase mb-3">Waste-specific revenue</div>
+            <div class="grid grid-cols-3 gap-3">
+              <div><label class="lbl">Waste (ton/yr)</label><input id="inp-import_waste" type="number" onchange="param('import_waste',this.value)" class="inp bg-white"></div>
+              <div><label class="lbl">Tipping Fee (THB/ton)</label><input id="inp-tipping_fee" type="number" step="0.01" onchange="param('tipping_fee',this.value)" class="inp bg-white"></div>
+              <div><label class="lbl">Growth (%)</label><input id="inp-tipping_growth" type="number" step="0.01" onchange="param('tipping_growth',this.value)" class="inp bg-white"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="font-bold text-emerald-800 bg-emerald-50 py-2 px-3 rounded-lg border-l-4 border-emerald-500">Financial Assumptions</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="lbl">Debt (%)</label><input id="inp-debt" type="number" min="0" max="100" step="0.01" onchange="param('debt',this.value)" class="inp"></div>
+            <div><label class="lbl">D/E Ratio</label><input id="disp-deRatio" disabled class="inp bg-slate-100"></div>
+            <div><label class="lbl">Debt (MTHB)</label><input id="disp-debtMthb" disabled class="inp bg-slate-100"></div>
+            <div><label class="lbl">Equity (MTHB)</label><input id="disp-equityMthb" disabled class="inp bg-slate-100"></div>
+            <div><label class="lbl">Interest Rate (%)</label><input id="inp-interest" type="number" step="0.01" onchange="param('interest',this.value)" class="inp"></div>
+            <div><label class="lbl">Debt Term (yr)</label><input id="inp-term" type="number" onchange="param('term',this.value)" class="inp"></div>
+            <div><label class="lbl">Income Tax (%)</label><input id="inp-tax" type="number" step="0.01" onchange="param('tax',this.value)" class="inp"></div>
+            <div><label class="lbl">Tax Holiday (yr)</label><input id="inp-hol1" type="number" onchange="param('hol1',this.value)" class="inp"></div>
+            <div><label class="lbl">Inflation (%)</label><input id="inp-infl" type="number" step="0.01" onchange="param('infl',this.value)" class="inp"></div>
+            <div><label class="lbl">Discount Rate (%)</label><input id="inp-discount_rate" type="number" step="0.01" onchange="param('discount_rate',this.value)" class="inp"></div>
+          </div>
+
+          <div class="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+            <h4 class="text-xs font-bold text-slate-700 uppercase mb-3">Target for Goal Seek</h4>
+            <div>
+              <label class="lbl">Target Project IRR (%)</label>
+              <input id="inp-targetProjIRR" type="number" step="0.01" onchange="param('targetProjIRR',this.value)" class="inp bg-white">
+            </div>
+            <p class="text-[11px] text-slate-500 mt-2">ใช้ Project IRR เป็นตัว Goal Seek ตาม Financial Model ใน Excel; Equity IRR เป็นผลลัพธ์จากโครงสร้างหนี้และกระแสเงินสดผู้ถือหุ้น</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="xl:col-span-4 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-4">
+      <div class="flex justify-between gap-2 items-start">
+        <h2 class="text-lg font-bold">3. Results</h2>
+        <span id="resultStatus" class="text-[10px] font-bold px-2 py-1 rounded-full"></span>
+      </div>
+      <div class="bg-gradient-to-br from-blue-700 to-indigo-800 text-white p-5 rounded-xl shadow-md text-center">
+        <div class="text-xs uppercase tracking-wider text-blue-100 font-semibold">Total FiT (THB/kWh)</div>
+        <div id="res-totalFit" class="text-4xl font-black mt-1 num">—</div>
+        <div class="text-[10px] text-blue-100 mt-2">Contract <span id="res-period"></span> yr</div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="p-3 bg-slate-50 rounded-lg border text-center"><div class="mini">FiT-F (FiTx)</div><div id="res-fitx" class="result">—</div></div>
+        <div class="p-3 bg-slate-50 rounded-lg border text-center"><div class="mini">FiT-V</div><div id="res-fitv" class="result">—</div></div>
+        <div class="p-3 bg-amber-50 rounded-lg border border-amber-200 text-center col-span-2"><div class="mini text-amber-700">FiT Premium</div><div id="res-premium" class="text-xl font-black text-amber-800 num">—</div></div>
+        <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-center"><div class="mini text-emerald-700">Project IRR</div><div id="res-projIRR" class="result text-emerald-800">—</div><div id="res-projPayback" class="text-xs text-emerald-700 mt-1"></div></div>
+        <div class="p-3 bg-indigo-50 rounded-lg border border-indigo-200 text-center"><div class="mini text-indigo-700">Equity IRR</div><div id="res-eqIRR" class="result text-indigo-800">—</div><div id="res-eqPayback" class="text-xs text-indigo-700 mt-1"></div></div>
+        <div class="p-3 bg-slate-50 rounded-lg border text-center col-span-2"><div class="mini">LCOE (THB/kWh)</div><div id="res-lcoe" class="text-2xl font-black mt-1 num">—</div></div>
+      </div>
+      <div id="calcNote" class="text-xs p-3 rounded-lg bg-slate-50 border text-slate-600"></div>
+      <div id="errorMsg" class="hidden text-xs font-semibold p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg"></div>
+      <div class="mt-auto space-y-2">
+        <input type="text" id="customName" class="inp" placeholder="ชื่อ Case สำหรับบันทึก">
+        <button onclick="saveCase()" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold">บันทึกเปรียบเทียบ</button>
+      </div>
+    </aside>
+  </div>
+
+  <section class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+    <div class="flex flex-col sm:flex-row justify-between gap-3 mb-4 sm:items-center">
+      <div><h2 class="text-lg font-bold">Comparison</h2></div>
+      <button id="exportBtn" onclick="exportCSV()" class="hidden px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">Download CSV</button>
+    </div>
+    <div class="overflow-x-auto custom-scrollbar border rounded-xl">
+      <table class="w-full text-xs whitespace-nowrap">
+        <thead class="bg-slate-100"><tr><th class="th text-left">Case</th><th class="th">CAPEX<br>(THB/W)</th><th class="th">OPEX<br>(%)</th><th class="th">PF<br>(%)</th><th class="th">Degradation<br>(%)</th><th class="th">Project Duration<br>(yr)</th><th class="th">D/E Ratio</th><th class="th">Interest Rate<br>(%)</th><th class="th">Debt Term<br>(yr)</th><th class="th">Income Tax<br>(%)</th><th class="th">Tax Holiday<br>(yr)</th><th class="th">Inflation<br>(%)</th><th class="th">Project IRR<br>(%)</th><th class="th">Equity IRR<br>(%)</th><th class="th">Total FiT</th><th class="th">FiTx</th><th class="th">FiTv</th><th class="th">FiT Premium</th><th class="th"></th></tr></thead>
+        <tbody id="comparisonBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+// UI helper classes
+for (const el of document.querySelectorAll('.lbl')) el.className='text-xs font-semibold text-slate-600';
+for (const el of document.querySelectorAll('.inp')) el.className += ' mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500';
+for (const el of document.querySelectorAll('.mini')) el.className += ' text-[10px] font-bold uppercase tracking-wide text-slate-500';
+for (const el of document.querySelectorAll('.result')) el.className += ' text-xl font-black mt-1 num';
+for (const el of document.querySelectorAll('.th')) el.className += ' px-3 py-3 text-right border-r border-slate-200';
+
+const templates = [
+  {
+    "id": 1,
+    "group": "Solar",
+    "name": "ปี 2556 Solar Rooftop | บ้านอยู่อาศัย",
+    "cap_kw": 10,
+    "capex": 63.7,
+    "pf": 14.84,
+    "deg": -1,
+    "life": 25,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 10,
+    "hol1": 0,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.7,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 0.68,
+    "refTotal": 6.96,
+    "refFiTx": 6.96,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.7,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.7,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 2,
+    "group": "Solar",
+    "name": "ปี 2556 Solar Rooftop | อาคารธุรกิจขนาดเล็ก",
+    "cap_kw": 250,
+    "capex": 58.4,
+    "pf": 14.84,
+    "deg": -1,
+    "life": 25,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 15,
+    "hol1": 0,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.7,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 0.6,
+    "refTotal": 6.85,
+    "refFiTx": 6.85,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.7,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.7,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 3,
+    "group": "Solar",
+    "name": "ปี 2556 Solar Rooftop | อาคารธุรกิจขนาดใหญ่/โรงงาน",
+    "cap_kw": 1000,
+    "capex": 58.2,
+    "pf": 14.84,
+    "deg": -1,
+    "life": 25,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 10.4,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 0.57,
+    "refTotal": 6.16,
+    "refFiTx": 6.16,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.4,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.4,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 4,
+    "group": "Solar",
+    "name": "ปี 2557 Solar Rooftop | บ้านอยู่อาศัย",
+    "cap_kw": 10,
+    "capex": 62.4,
+    "pf": 14.84,
+    "deg": -1,
+    "life": 25,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 10,
+    "hol1": 0,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.7,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 0.69,
+    "refTotal": 6.85,
+    "refFiTx": 6.85,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.7,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.7,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 5,
+    "group": "Solar",
+    "name": "ปี 2557 Solar Rooftop | อาคารธุรกิจขนาดเล็ก",
+    "cap_kw": 250,
+    "capex": 57,
+    "pf": 14.84,
+    "deg": -1,
+    "life": 25,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 15,
+    "hol1": 0,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.7,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 0.62,
+    "refTotal": 6.4,
+    "refFiTx": 6.4,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.7,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.7,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 6,
+    "group": "Solar",
+    "name": "ปี 2557 Solar Rooftop | อาคารธุรกิจขนาดใหญ่/โรงงาน",
+    "cap_kw": 1000,
+    "capex": 56.8,
+    "pf": 14.84,
+    "deg": -1,
+    "life": 25,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 10.4,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 0.59,
+    "refTotal": 6.01,
+    "refFiTx": 6.01,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.4,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.4,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 7,
+    "group": "Solar",
+    "name": "ปี 2557 Solar Ground mount",
+    "cap_kw": 90000,
+    "capex": 54,
+    "pf": 16,
+    "deg": -0.8,
+    "life": 25,
+    "debt": 70,
+    "interest": 6.5,
+    "term": 10,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 9.5,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 2,
+    "refTotal": 5.66,
+    "refFiTx": 5.66,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 9.5,
+    "refEqIRR": 12,
+    "targetProjIRR": 9.5,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 8,
+    "group": "Solar",
+    "name": "ปี 2559 Solar Ground mount",
+    "cap_kw": 90000,
+    "capex": 42.2,
+    "pf": 16,
+    "deg": -0.8,
+    "life": 25,
+    "debt": 70,
+    "interest": 6.5,
+    "term": 10,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 8.5,
+    "eqIRR": 10,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 2,
+    "refTotal": 4.12,
+    "refFiTx": 4.12,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 8.5,
+    "refEqIRR": 10,
+    "targetProjIRR": 8.5,
+    "targetEqIRR": 10,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 9,
+    "group": "Solar",
+    "name": "ปี 2562 Solar ชุมชนเพื่อเศรษฐกิจฐานราก",
+    "cap_kw": 10000,
+    "capex": 26,
+    "pf": 16,
+    "deg": -0.8,
+    "life": 25,
+    "debt": 70,
+    "interest": 6.5,
+    "term": 10,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10,
+    "eqIRR": 13,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 2,
+    "refTotal": 2.9,
+    "refFiTx": 2.9,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10,
+    "refEqIRR": 13,
+    "targetProjIRR": 10,
+    "targetEqIRR": 13,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 10,
+    "group": "Solar",
+    "name": "ปี 2565 RE Biglot | Solar Ground mount",
+    "cap_kw": 90000,
+    "capex": 25.8,
+    "pf": 16,
+    "deg": 0,
+    "life": 25,
+    "debt": 70,
+    "interest": 6,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 8,
+    "eqIRR": 9,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 1.5,
+    "refTotal": 2.1679,
+    "refFiTx": 2.1679,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 8,
+    "refEqIRR": 9,
+    "targetProjIRR": 8,
+    "targetEqIRR": 9,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 12,
+    "group": "Wind",
+    "name": "ปี 2557 | VSPP",
+    "cap_kw": 10000,
+    "capex": 64,
+    "pf": 18,
+    "deg": 0,
+    "life": 25,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 10.3,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 2,
+    "refTotal": 6.06,
+    "refFiTx": 6.06,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.3,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.3,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 13,
+    "group": "Wind",
+    "name": "ปี 2565 | RE Biglot",
+    "cap_kw": 90000,
+    "capex": 54.7,
+    "pf": 25,
+    "deg": 0,
+    "life": 25,
+    "debt": 60,
+    "interest": 6,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 8,
+    "eqIRR": 8.8,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 2,
+    "refTotal": 3.1014,
+    "refFiTx": 3.1014,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 8,
+    "refEqIRR": 8.8,
+    "targetProjIRR": 8,
+    "targetEqIRR": 8.8,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 14,
+    "group": "Hydro",
+    "name": "ปี 2557 | VSPP (Hydro)",
+    "cap_kw": 200,
+    "capex": 99.5,
+    "pf": 41,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7.5,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 10.7,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 4,
+    "refTotal": 4.9,
+    "refFiTx": 4.9,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.7,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.7,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 15,
+    "group": "Biomass",
+    "name": "ปี 2557 | VSPP เปลี่ยนผ่าน Adder (≤ 1 MW)",
+    "cap_kw": 1000,
+    "capex": 90,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7.5,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 13.1,
+    "eqIRR": 16,
+    "fuelCost": 121,
+    "heatRate": 18250,
+    "premium": 0.5,
+    "premYrs": 8,
+    "opexPct": 7.5,
+    "refTotal": 5.34,
+    "refFiTx": 3.13,
+    "refFiTv": 2.21,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 13.1,
+    "refEqIRR": 16,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.1,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 16,
+    "group": "Biomass",
+    "name": "ปี 2557 | VSPP เปลี่ยนผ่าน Adder (>1-3 MW)",
+    "cap_kw": 3000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 13,
+    "eqIRR": 17.3,
+    "fuelCost": 121,
+    "heatRate": 18250,
+    "premium": 0.4,
+    "premYrs": 8,
+    "opexPct": 7.5,
+    "refTotal": 4.82,
+    "refFiTx": 2.61,
+    "refFiTv": 2.21,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 13,
+    "refEqIRR": 17.3,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.8,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 17,
+    "group": "Biomass",
+    "name": "ปี 2557 | VSPP เปลี่ยนผ่าน Adder (>3-10 MW)",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 12.2,
+    "eqIRR": 15.7,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0.3,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 4.24,
+    "refFiTx": 2.39,
+    "refFiTv": 1.85,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 12.2,
+    "refEqIRR": 15.7,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.7,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 18,
+    "group": "Biomass",
+    "name": "ปี 2560 | VSPP ชีวมวลประชารัฐ (≤ 3 MW)",
+    "cap_kw": 3000,
+    "capex": 78.513,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 12,
+    "eqIRR": 15,
+    "fuelCost": 121,
+    "heatRate": 18250,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 7.5,
+    "refTotal": 5.14,
+    "refFiTx": 2.93,
+    "refFiTv": 2.21,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 12,
+    "refEqIRR": 15,
+    "targetProjIRR": 12,
+    "targetEqIRR": 15,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 19,
+    "group": "Biomass",
+    "name": "ปี 2560 | VSPP ชีวมวลประชารัฐ (>3-10 MW)",
+    "cap_kw": 10000,
+    "capex": 78.513,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 11,
+    "eqIRR": 13.3,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 6,
+    "refTotal": 4.45,
+    "refFiTx": 2.6,
+    "refFiTv": 1.85,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 11,
+    "refEqIRR": 13.3,
+    "targetProjIRR": 11,
+    "targetEqIRR": 13.3,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 20,
+    "group": "Biomass",
+    "name": "ปี 2560 | VSPP Semi-firm (≤ 3 MW)",
+    "cap_kw": 3000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 13,
+    "eqIRR": 17.3,
+    "fuelCost": 121,
+    "heatRate": 18250,
+    "premium": 0.4,
+    "premYrs": 8,
+    "opexPct": 7.5,
+    "refTotal": 4.82,
+    "refFiTx": 2.61,
+    "refFiTv": 2.21,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 13,
+    "refEqIRR": 17.3,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.8,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 21,
+    "group": "Biomass",
+    "name": "ปี 2560 | VSPP Semi-firm (>3-10 MW)",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 12.2,
+    "eqIRR": 15.7,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0.3,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 4.24,
+    "refFiTx": 2.39,
+    "refFiTv": 1.85,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 12.2,
+    "refEqIRR": 15.7,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.8,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 22,
+    "group": "Biomass",
+    "name": "ปี 2560 | SPP Hybrid Firm (>10-90 MW)",
+    "cap_kw": 50000,
+    "capex": 65,
+    "pf": 80,
+    "deg": 0,
+    "life": 20,
+    "debt": 70,
+    "interest": 6.5,
+    "term": 10,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10,
+    "eqIRR": 13.5,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 6,
+    "refTotal": 3.66,
+    "refFiTx": 1.81,
+    "refFiTv": 1.85,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 10,
+    "refEqIRR": 13.5,
+    "targetProjIRR": 10,
+    "targetEqIRR": 13.5,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 23,
+    "group": "Biomass",
+    "name": "ปี 2562 | VSPP รฟ.ชุมชน (≤ 3 MW)",
+    "cap_kw": 3000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.1,
+    "eqIRR": 11.8,
+    "fuelCost": 121,
+    "heatRate": 18250,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 7.5,
+    "refTotal": 4.8482,
+    "refFiTx": 2.61,
+    "refFiTv": 2.2382,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 10.1,
+    "refEqIRR": 11.8,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.8,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 24,
+    "group": "Biomass",
+    "name": "ปี 2562 | VSPP รฟ.ชุมชน (>3-10 MW)",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.1,
+    "eqIRR": 11.8,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 6,
+    "refTotal": 4.2636,
+    "refFiTx": 2.39,
+    "refFiTv": 1.8736,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 10.1,
+    "refEqIRR": 11.8,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.8,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 25,
+    "group": "Biogas",
+    "name": "ปี 2557 VSPP | น้ำเสีย/ของเสีย",
+    "cap_kw": 10000,
+    "capex": 126,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7.5,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 12.1,
+    "eqIRR": 14.3,
+    "fuelCost": 0,
+    "heatRate": 10526,
+    "premium": 0.5,
+    "premYrs": 8,
+    "opexPct": 5,
+    "refTotal": 3.76,
+    "refFiTx": null,
+    "refFiTv": null,
+    "splitProvided": false,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 12.1,
+    "refEqIRR": 14.3,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.0,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 26,
+    "group": "Biogas",
+    "name": "ปี 2557 VSPP | พืชพลังงาน",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 78,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 13.2,
+    "eqIRR": 16.6,
+    "fuelCost": 500,
+    "heatRate": 10526,
+    "premium": 0.5,
+    "premYrs": 8,
+    "opexPct": 5,
+    "refTotal": 5.34,
+    "refFiTx": 2.79,
+    "refFiTv": 2.55,
+    "splitProvided": true,
+    "fitvOverride": 2.55,
+    "fuelUnit": "THB/ton",
+    "sourceDetailed": true,
+    "refProjIRR": 13.2,
+    "refEqIRR": 16.6,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.4,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 27,
+    "group": "Biogas",
+    "name": "ปี 2560 VSPP Semi-firm | น้ำเสีย/ของเสีย",
+    "cap_kw": 10000,
+    "capex": 126,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7.5,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 12.1,
+    "eqIRR": 14.3,
+    "fuelCost": 0,
+    "heatRate": 10526,
+    "premium": 0.5,
+    "premYrs": 8,
+    "opexPct": 5,
+    "refTotal": 3.76,
+    "refFiTx": null,
+    "refFiTv": null,
+    "splitProvided": false,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 12.1,
+    "refEqIRR": 14.3,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.0,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 28,
+    "group": "Biogas",
+    "name": "ปี 2560 VSPP Semi-firm | พืชพลังงาน",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 78,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 13.3,
+    "eqIRR": 16.5,
+    "fuelCost": 500,
+    "heatRate": 10526,
+    "premium": 0.5,
+    "premYrs": 8,
+    "opexPct": 5,
+    "refTotal": 5.34,
+    "refFiTx": 2.79,
+    "refFiTv": 2.55,
+    "splitProvided": true,
+    "fitvOverride": 2.55,
+    "fuelUnit": "THB/ton",
+    "sourceDetailed": true,
+    "refProjIRR": 13.3,
+    "refEqIRR": 16.5,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.5,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 29,
+    "group": "Biogas",
+    "name": "ปี 2562 รฟ.ชุมชน | น้ำเสีย/ของเสีย",
+    "cap_kw": 10000,
+    "capex": 126,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7.5,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10,
+    "eqIRR": 11,
+    "fuelCost": 0,
+    "heatRate": 10526,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 5,
+    "refTotal": 3.76,
+    "refFiTx": null,
+    "refFiTv": null,
+    "splitProvided": false,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10,
+    "refEqIRR": 11,
+    "targetProjIRR": 10,
+    "targetEqIRR": 11,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 30,
+    "group": "Biogas",
+    "name": "ปี 2562 รฟ.ชุมชน | พืชพลังงาน 100%",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 78,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.1,
+    "eqIRR": 11.5,
+    "fuelCost": 500,
+    "heatRate": 10526,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 5,
+    "refTotal": 5.3725,
+    "refFiTx": 2.79,
+    "refFiTv": 2.5825,
+    "splitProvided": true,
+    "fitvOverride": 2.5825,
+    "fuelUnit": "THB/ton",
+    "sourceDetailed": true,
+    "refProjIRR": 10.1,
+    "refEqIRR": 11.5,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.5,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 31,
+    "group": "Biogas",
+    "name": "ปี 2562 รฟ.ชุมชน | พืชพลังงาน+น้ำเสีย",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 78,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.1,
+    "eqIRR": 11.5,
+    "fuelCost": 500,
+    "heatRate": 10526,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 5,
+    "refTotal": 4.7269,
+    "refFiTx": 2.79,
+    "refFiTv": 1.9369,
+    "splitProvided": true,
+    "fitvOverride": 1.9369,
+    "fuelUnit": "THB/ton",
+    "sourceDetailed": true,
+    "refProjIRR": 10.1,
+    "refEqIRR": 11.5,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.5,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 32,
+    "group": "Biogas",
+    "name": "ปี 2565 RE Biglot | น้ำเสีย/ของเสีย",
+    "cap_kw": 90000,
+    "capex": 70,
+    "pf": 75,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 6,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 0,
+    "projIRR": 8,
+    "eqIRR": 8.7,
+    "fuelCost": 0,
+    "heatRate": 9468,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 7.5,
+    "refTotal": 2.0724,
+    "refFiTx": null,
+    "refFiTv": null,
+    "splitProvided": false,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 8,
+    "refEqIRR": 8.7,
+    "targetProjIRR": 8,
+    "targetEqIRR": 8.7,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 33,
+    "group": "MSW",
+    "name": "ปี 2557 | RDF/Thermal (≤ 1 MW)",
+    "cap_kw": 1000,
+    "capex": 90,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7.5,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 14.4,
+    "eqIRR": 18.3,
+    "fuelCost": 176,
+    "heatRate": 18250,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 7.5,
+    "refTotal": 6.34,
+    "refFiTx": 3.13,
+    "refFiTv": 3.21,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 14.4,
+    "refEqIRR": 18.3,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.1,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 34,
+    "group": "MSW",
+    "name": "ปี 2557 | RDF/Thermal (>1-3 MW)",
+    "cap_kw": 3000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 15.4,
+    "eqIRR": 22.2,
+    "fuelCost": 176,
+    "heatRate": 18250,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 7.5,
+    "refTotal": 5.82,
+    "refFiTx": 2.61,
+    "refFiTv": 3.21,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 15.4,
+    "refEqIRR": 22.2,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.8,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 35,
+    "group": "MSW",
+    "name": "ปี 2557 | RDF/Thermal (>3-10 MW)",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 15.3,
+    "eqIRR": 21.9,
+    "fuelCost": 176,
+    "heatRate": 15295,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 5.08,
+    "refFiTx": 2.39,
+    "refFiTv": 2.69,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 15.3,
+    "refEqIRR": 21.9,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.7,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 36,
+    "group": "MSW",
+    "name": "ปี 2557 | Landfill (≤ 10 MW)",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 60,
+    "deg": 0,
+    "life": 10,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 13.6,
+    "eqIRR": 21.4,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 12.5,
+    "refTotal": 5.6,
+    "refFiTx": null,
+    "refFiTv": null,
+    "splitProvided": false,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 13.6,
+    "refEqIRR": 21.4,
+    "targetProjIRR": 13.6,
+    "targetEqIRR": 21.4,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 37,
+    "group": "MSW",
+    "name": "ปี 2560 | SPP (>10-50 MW)",
+    "cap_kw": 50000,
+    "capex": 65,
+    "pf": 80,
+    "deg": 0,
+    "life": 20,
+    "debt": 70,
+    "interest": 6.5,
+    "term": 10,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10,
+    "eqIRR": 13.5,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 6,
+    "refTotal": 3.66,
+    "refFiTx": 1.81,
+    "refFiTv": 1.85,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 10,
+    "refEqIRR": 13.5,
+    "targetProjIRR": 10,
+    "targetEqIRR": 13.5,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 38,
+    "group": "MSW",
+    "name": "ปี 2565 RE Biglot | VSPP (≤ 10 MW)",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 15.3,
+    "eqIRR": 21.9,
+    "fuelCost": 176,
+    "heatRate": 15295,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 5.08,
+    "refFiTx": 2.39,
+    "refFiTv": 2.69,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 15.3,
+    "refEqIRR": 21.9,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.7,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 39,
+    "group": "MSW",
+    "name": "ปี 2565 RE Biglot | SPP (>10-50 MW)",
+    "cap_kw": 50000,
+    "capex": 65,
+    "pf": 80,
+    "deg": 0,
+    "life": 20,
+    "debt": 70,
+    "interest": 6.5,
+    "term": 10,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10,
+    "eqIRR": 13.5,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 6,
+    "refTotal": 3.66,
+    "refFiTx": 1.81,
+    "refFiTv": 1.85,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 10,
+    "refEqIRR": 13.5,
+    "targetProjIRR": 10,
+    "targetEqIRR": 13.5,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 40,
+    "group": "Industrial Waste",
+    "name": "ปี 2558 | ต่อยอด",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 15.3,
+    "eqIRR": 21.9,
+    "fuelCost": 176,
+    "heatRate": 15295,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 5.08,
+    "refFiTx": 2.39,
+    "refFiTv": 2.69,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 15.3,
+    "refEqIRR": 21.9,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.7,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 41,
+    "group": "Industrial Waste",
+    "name": "ปี 2558 | ใหม่",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 15.5,
+    "eqIRR": 22,
+    "fuelCost": 176,
+    "heatRate": 15295,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 6.08,
+    "refFiTx": 3.39,
+    "refFiTv": 2.69,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 15.5,
+    "refEqIRR": 22,
+    "targetProjIRR": 11.6,
+    "targetEqIRR": 14.3,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 42,
+    "group": "Industrial Waste",
+    "name": "ปี 2558 | ใหม่+พลาสม่า",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 22.7,
+    "eqIRR": 37,
+    "fuelCost": 176,
+    "heatRate": 15295,
+    "premium": 1.7,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 6.08,
+    "refFiTx": 3.39,
+    "refFiTv": 2.69,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 22.7,
+    "refEqIRR": 37,
+    "targetProjIRR": 11.6,
+    "targetEqIRR": 14.3,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 43,
+    "group": "Industrial Waste",
+    "name": "ปี 2565 | RE Biglot",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 15.5,
+    "eqIRR": 22,
+    "fuelCost": 176,
+    "heatRate": 15295,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 6.08,
+    "refFiTx": 3.39,
+    "refFiTv": 2.69,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 15.5,
+    "refEqIRR": 22,
+    "targetProjIRR": 11.6,
+    "targetEqIRR": 14.3,
+    "other_growth": 0,
+    "noFiTv": false
+  }
+];
+let current = null;
+let templatePristine = true;
+let calcMode = 'FIND_FITX';
+let overrideFiT = 0;
+let savedCases = JSON.parse(localStorage.getItem('fitCalculatorCasesV3') || '[]');
+
+const n = (v,d=0) => Number.isFinite(Number(v)) ? Number(v) : d;
+const fmt = (v,dec=4) => (v===null || v===undefined || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(dec);
+const money = v => Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+function setV(id,v){const e=document.getElementById(id); if(e) e.value=(v===null||v===undefined)?'':v;}
+function showError(msg){const e=document.getElementById('errorMsg');e.textContent=msg;e.classList.remove('hidden')}
+function clearError(){document.getElementById('errorMsg').classList.add('hidden')}
+
+function capexMTHB(){ return current.cap_kw * current.capex / 1000; }
+function opexMTHB(){ return capexMTHB() * current.opexPct / 100; }
+function energyBase(){ return current.cap_kw * (current.pf/100) * 8760 / 1000; }
+function energyYr1(){ return energyBase() * Math.pow(1 + current.deg/100, 1); }
+function isWasteModel(){ return current.group==='MSW' || current.group==='Industrial Waste'; }
+function hasFiTv(){ return !current.noFiTv; }
+
+function computeFiTV(){
+  if(current.noFiTv) return 0;
+  if(current.fitvOverride !== null && current.fitvOverride !== '' && Number.isFinite(Number(current.fitvOverride))) return Number(current.fitvOverride);
+  if(current.fuelUnit === 'THB/GJ') return current.fuelCost * current.heatRate / 1_000_000;
+  if(current.fuelUnit === '-' || current.fuelCost===0) return 0;
+  return null;
+}
+
+/* Excel PMT convention translated to positive annual debt service. */
+function annualDebtService(rate,nper,pv){
+  if(pv<=0 || nper<=0) return 0;
+  if(Math.abs(rate)<1e-14) return pv/nper;
+  return pv*rate/(1-Math.pow(1+rate,-nper));
+}
+function npv0(cfs,rate){ return cfs.reduce((s,cf,i)=>s+cf/Math.pow(1+rate,i),0); }
+
+/* Excel IRR rows use IRR(...,0.15). Newton iteration with 15% guess, with bisection fallback. */
+function calcIRRExcel(cfs,guess=0.15){
+  if(!cfs.some(x=>x>0)||!cfs.some(x=>x<0)) return null;
+  let r=guess;
+  for(let k=0;k<100;k++){
+    if(r<=-0.999999999) r=-0.999999;
+    let f=0,df=0;
+    for(let t=0;t<cfs.length;t++){
+      const den=Math.pow(1+r,t);
+      f+=cfs[t]/den;
+      if(t>0) df-=t*cfs[t]/Math.pow(1+r,t+1);
+    }
+    if(!Number.isFinite(f)||!Number.isFinite(df)||Math.abs(df)<1e-14) break;
+    const nr=r-f/df;
+    if(!Number.isFinite(nr)||nr<=-0.999999999||Math.abs(nr-r)>10) break;
+    if(Math.abs(nr-r)<1e-12) return nr;
+    r=nr;
+  }
+  // fallback for normal single-root project cash flows
+  const f=x=>npv0(cfs,x);
+  let lo=-0.9999,hi=1,flo=f(lo),fhi=f(hi),guard=0;
+  while(Number.isFinite(flo)&&Number.isFinite(fhi)&&flo*fhi>0&&hi<1024&&guard++<30){hi=hi*2+0.5;fhi=f(hi);}
+  if(!Number.isFinite(flo)||!Number.isFinite(fhi)||flo*fhi>0) return null;
+  for(let i=0;i<180;i++){
+    const mid=(lo+hi)/2,fm=f(mid);
+    if(Math.abs(fm)<1e-12) return mid;
+    if(flo*fm<=0){hi=mid;fhi=fm;}else{lo=mid;flo=fm;}
+  }
+  return (lo+hi)/2;
+}
+
+/* Excel payback rows: first-year crossing returns Year 1; subsequent years interpolate. */
+function excelPayback(cfs){
+  if(cfs.length<2) return null;
+  let prev=cfs[0], cur=prev+cfs[1];
+  if(prev<0 && cur>0) return 1;
+  for(let y=2;y<cfs.length;y++){
+    prev=cur; cur+=cfs[y];
+    if(prev<0 && cur>0) return (y-1) - prev/(cur-prev);
+  }
+  return null;
+}
+
+/*
+  Cash-flow engine mirrors the uploaded Excel:
+  - year 1 electricity = base energy × (1+degradation)^1
+  - reinvestment occurs in year 11
+  - non-waste O&M escalates from year 1; waste-model O&M starts un-escalated in year 1
+  - waste tipping fee steps up every 3 years
+  - tax base follows the Excel cumulative-investment / project-life formula
+  - Debt service follows PMT; Project and Equity cash flows follow the same row structure
+  - FiT-V is outside the investment-tariff financial model; FiTx is the tariff used in cash flow
+*/
+function generateExcelCF(fitx,{includePremium=true}={}){
+  const life=Math.max(1,Math.round(current.life));
+  const capex=capexMTHB(), opex0=opexMTHB(), e0=energyBase();
+  const waste=isWasteModel();
+  const investment=Array(life+1).fill(0);
+  investment[0]=-capex;
+  if(life>=11) investment[11]=-Math.max(0,current.reinvest);
+
+  const annualCost=Array(life+1).fill(0);
+  const annualBenefit=Array(life+1).fill(0);
+  const energy=Array(life+1).fill(0);
+
+  for(let y=1;y<=life;y++){
+    const opexExponent = waste ? (y-1) : y;
+    const opex = -opex0*Math.pow(1+current.infl/100,opexExponent);
+    const other = -current.other_cost*Math.pow(1+current.other_growth/100,y);
+    annualCost[y]=opex+other;
+
+    energy[y]=e0*Math.pow(1+current.deg/100,y);
+    const premium=(includePremium && y<=current.premYrs)?current.premium:0;
+    let benefit=energy[y]*(fitx+premium)/1000;
+
+    if(waste){
+      const block=Math.floor((y-1)/3);
+      const tipping=current.tipping_fee*Math.pow(1+current.tipping_growth/100,block);
+      benefit += current.import_waste*tipping/1_000_000;
+    }
+    annualBenefit[y]=benefit;
+  }
+
+  const debt0=capex*(current.debt/100);
+  const debtService=Array(life+1).fill(0);
+  const interestPay=Array(life+1).fill(0);
+  const principalPay=Array(life+1).fill(0);
+  const loanBalance=Array(life+1).fill(0);
+  loanBalance[0]=-debt0;
+  const rate=current.interest/100;
+  const pmt=annualDebtService(rate,current.term,debt0);
+  for(let y=1;y<=life;y++){
+    if(y<=current.term){
+      debtService[y]=-pmt;
+      interestPay[y]=loanBalance[y-1]*rate;
+      principalPay[y]=debtService[y]-interestPay[y];
+      loanBalance[y]=loanBalance[y-1]-principalPay[y];
+    }else{
+      loanBalance[y]=loanBalance[y-1];
+    }
+  }
+
+  const projectTax=Array(life+1).fill(0);
+  const equityTax=Array(life+1).fill(0);
+  let cumulativeInvestment=investment[0];
+  for(let y=1;y<=life;y++){
+    cumulativeInvestment += investment[y];
+    const taxRate = y>current.hol1 ? current.tax/100 : 0;
+    const depreciationTerm = cumulativeInvestment/life; // negative, exactly as SUM(investment)/life in Excel
+
+    const preTaxProject = annualCost[y]+annualBenefit[y]+investment[y];
+    if(preTaxProject < -cumulativeInvestment/life){
+      projectTax[y]=0;
+    }else{
+      projectTax[y]=-(preTaxProject+depreciationTerm)*taxRate;
+    }
+
+    const preTaxEquity = annualCost[y]+annualBenefit[y]+interestPay[y]+investment[y];
+    if(preTaxEquity < -cumulativeInvestment/life){
+      equityTax[y]=0;
+    }else{
+      equityTax[y]=-(preTaxEquity+depreciationTerm)*taxRate;
+    }
+  }
+
+  const projCF=Array(life+1).fill(0),eqCF=Array(life+1).fill(0);
+  projCF[0]=investment[0];
+  eqCF[0]=projCF[0]*(1-current.debt/100);
+  for(let y=1;y<=life;y++){
+    projCF[y]=investment[y]+annualCost[y]+annualBenefit[y]+projectTax[y];
+    eqCF[y]=investment[y]+annualCost[y]+annualBenefit[y]+equityTax[y]+debtService[y];
+  }
+
+  // Excel LCOE: -(Year0 CAPEX + NPV(Annual Cost)) / NPV(Energy) × 1000
+  const dr=current.discount_rate/100;
+  let pvAnnualCost=0,pvEnergy=0;
+  for(let y=1;y<=life;y++){
+    pvAnnualCost += annualCost[y]/Math.pow(1+dr,y);
+    pvEnergy += energy[y]/Math.pow(1+dr,y);
+  }
+  const lcoe=pvEnergy>0 ? -(investment[0]+pvAnnualCost)/pvEnergy*1000 : null;
+
+  return {projCF,eqCF,lcoe,debt:debt0,equity:capex-debt0,energyYr1:energy[1]};
+}
+
+/* Excel Goal Seek changes Investment Tariff to meet Project IRR. Premium is excluded from the base Goal Seek. */
+function solveFiTxExcel(targetPct){
+  if(targetPct===null||targetPct===''||!Number.isFinite(Number(targetPct))) return null;
+  const target=Number(targetPct)/100;
+  const f=x=>npv0(generateExcelCF(x,{includePremium:false}).projCF,target);
+  let lo=0,flo=f(lo);
+  if(flo>=0) return 0;
+  let hi=2,fhi=f(hi),guard=0;
+  while(fhi<0&&hi<200&&guard++<40){hi*=2;fhi=f(hi);}
+  if(!Number.isFinite(fhi)||fhi<0) return null;
+  for(let i=0;i<140;i++){
+    const mid=(lo+hi)/2,fm=f(mid);
+    if(Math.abs(fm)<1e-11) return mid;
+    if(fm>=0) hi=mid; else lo=mid;
+  }
+  return (lo+hi)/2;
+}
+
+function runCalculations(){
+  clearError();
+  let fitv=computeFiTV(),fitx=null,total=null,referenceMode=false,displayFiTv=hasFiTv(),displaySplit=true;
+
+  if(calcMode==='FIND_FITX' && templatePristine && Number.isFinite(Number(current.refTotal))){
+    referenceMode=true;
+    total=Number(current.refTotal);
+    if(current.noFiTv){
+      fitx=total; fitv=0; displayFiTv=false;
+    }else if(current.splitProvided && Number.isFinite(Number(current.refFiTx)) && Number.isFinite(Number(current.refFiTv))){
+      fitx=Number(current.refFiTx); fitv=Number(current.refFiTv);
+    }else{
+      // Reference source does not provide an FiTx/FiTv split.
+      const modelFitv = fitv===null ? 0 : fitv;
+      fitx=total-modelFitv;
+      fitv=modelFitv;
+      displaySplit=false;
+    }
+  }else{
+    if(fitv===null){
+      showError('Fuel Cost หน่วย THB/ton ไม่สามารถแปลงเป็น FiT-V จาก Net Heat Rate ได้โดยตรง กรุณาระบุ FiT-V Override ก่อนคำนวณ');
+      return {error:true};
+    }
+    if(calcMode==='FIND_FITX'){
+      fitx=solveFiTxExcel(current.targetProjIRR);
+      if(fitx===null){
+        showError('ไม่สามารถหา FiTx จาก Target Project IRR ตามสูตร Financial Model ใน Excel ได้');
+        return {error:true};
+      }
+      total=fitx+fitv;
+    }else{
+      total=overrideFiT;
+      fitx=total-fitv;
+      if(fitx<0) showError('Total FiT ต่ำกว่า FiT-V ทำให้ FiTx ติดลบ กรุณาตรวจสอบค่า');
+    }
+  }
+
+  const cfs=generateExcelCF(fitx,{includePremium:true});
+  const pIRR=calcIRRExcel(cfs.projCF,0.15),eIRR=calcIRRExcel(cfs.eqCF,0.15);
+  return {
+    error:false,fitx,fitv,totalFiT:total,
+    projIRR:pIRR===null?null:pIRR*100,
+    eqIRR:eIRR===null?null:eIRR*100,
+    projPayback:excelPayback(cfs.projCF),
+    eqPayback:excelPayback(cfs.eqCF),
+    lcoe:cfs.lcoe,debt:cfs.debt,equity:cfs.equity,energy:cfs.energyYr1,
+    referenceMode,displayFiTv,displaySplit
+  };
+}
+
+function param(field,val){current[field]=n(val);templatePristine=false;updateUI();}
+function paramNullable(field,val){current[field]=(String(val).trim()==='')?null:n(val);templatePristine=false;updateUI();}
+function fuelParam(field,val){
+  current[field]=n(val);
+  if(current.fuelUnit==='THB/GJ') current.fitvOverride=null;
+  templatePristine=false;updateUI();
+}
+function fuelUnitChange(v){
+  current.fuelUnit=v;
+  if(v==='THB/GJ'||v==='-')current.fitvOverride=null;
+  templatePristine=false;updateUI();
+}
+function fitvOverrideChange(v){current.fitvOverride=(String(v).trim()==='')?null:n(v);templatePristine=false;updateUI();}
+function setOverrideFiT(v){overrideFiT=n(v);updateUI();}
+function setCalcMode(mode){
+  calcMode=mode;
+  document.getElementById('overrideContainer').classList.toggle('hidden',mode!=='FIND_IRR');
+  document.getElementById('btnModeFitx').className=mode==='FIND_FITX'?'px-4 py-1.5 text-sm rounded-md font-semibold bg-white shadow-sm text-blue-600':'px-4 py-1.5 text-sm rounded-md text-slate-500 font-medium';
+  document.getElementById('btnModeIrr').className=mode==='FIND_IRR'?'px-4 py-1.5 text-sm rounded-md font-semibold bg-white shadow-sm text-blue-600':'px-4 py-1.5 text-sm rounded-md text-slate-500 font-medium';
+  updateUI();
+}
+
+function makeBlankTemplate(){
+  return {
+    id:'blank', group:'Blank', name:'Blank template', isBlank:true,
+    cap_kw:null, capex:null, opexPct:null, pf:null, deg:null, life:null,
+    debt:null, interest:null, term:null, tax:null, hol1:null, hol2:null,
+    infl:null, projIRR:null, eqIRR:null, fuelCost:null, heatRate:null,
+    premium:null, premYrs:null, refTotal:null, refFiTx:null, refFiTv:null,
+    splitProvided:false, fitvOverride:null, fuelUnit:'-', sourceDetailed:false,
+    refProjIRR:null, refEqIRR:null, targetProjIRR:null, targetEqIRR:null,
+    other_cost:null, other_growth:null, reinvest:null, import_waste:null,
+    tipping_fee:null, tipping_growth:null, discount_rate:null, noFiTv:true
+  };
+}
+
+function selectTemplate(id){
+  if(String(id)==='blank'){
+    current=makeBlankTemplate();
+    templatePristine=true;
+    overrideFiT=0;
+    document.getElementById('customName').value='';
+    setV('input-overrideFiT',null);
+    updateUI();
+    return;
+  }
+  const t=templates.find(x=>x.id===Number(id)); if(!t)return;
+  current=JSON.parse(JSON.stringify(t));
+  current.other_cost=0;
+  current.other_growth=current.other_growth||0;
+  current.reinvest=0;
+  current.import_waste=0;
+  current.tipping_fee=0;
+  current.tipping_growth=0;
+  current.discount_rate=10.0; // matches the uploaded Excel Financial Model
+  templatePristine=true;
+  overrideFiT=current.refTotal||0;
+  document.getElementById('customName').value=current.name;
+  setV('input-overrideFiT',overrideFiT);
+  updateUI();
+}
+
+function holidayDisplay(t){
+  return n(t.hol2)>0 ? `${fmt(t.hol1,0)}+${fmt(t.hol2,0)}` : fmt(t.hol1,0);
+}
+function deRatioDisplay(debt){
+  const d=n(debt); return `${fmt(d,0)}:${fmt(100-d,0)}`;
+}
+
+function updateUI(){
+  if(!current)return;
+  const map=['cap_kw','pf','capex','opexPct','life','deg','fuelCost','heatRate','other_cost','other_growth','reinvest','premium','premYrs','debt','interest','term','tax','hol1','infl','discount_rate','import_waste','tipping_fee','tipping_growth'];
+  for(const k of map)setV('inp-'+k,current[k]);
+  setV('inp-targetProjIRR',current.targetProjIRR);
+  setV('inp-fuelUnit',current.fuelUnit);
+  setV('inp-fitvOverride',current.fitvOverride);
+
+  if(current.isBlank && templatePristine){
+    setV('disp-capexMthb',null);
+    setV('disp-opexMthb',null);
+    setV('disp-energy',null);
+    setV('disp-debtMthb',null);
+    setV('disp-equityMthb',null);
+    setV('disp-deRatio',null);
+    document.getElementById('wasteInputs').classList.add('hidden');
+    document.getElementById('fitvHint').textContent='';
+    document.getElementById('res-totalFit').textContent='—';
+    document.getElementById('res-period').textContent='—';
+    document.getElementById('res-fitx').textContent='—';
+    document.getElementById('res-fitv').textContent='—';
+    document.getElementById('res-premium').textContent='—';
+    document.getElementById('res-projIRR').textContent='—';
+    document.getElementById('res-eqIRR').textContent='—';
+    document.getElementById('res-projPayback').textContent='Payback: —';
+    document.getElementById('res-eqPayback').textContent='Payback: —';
+    document.getElementById('res-lcoe').textContent='—';
+    const st=document.getElementById('resultStatus');
+    st.textContent='';
+    st.className='';
+    document.getElementById('calcNote').textContent='';
+    clearError();
+    return;
+  }
+
+  const capex=capexMTHB(),opex=opexMTHB(),debt=capex*current.debt/100,eq=capex-debt;
+  setV('disp-capexMthb',capex.toFixed(4));
+  setV('disp-opexMthb',opex.toFixed(4));
+  setV('disp-energy',money(energyYr1()));
+  setV('disp-debtMthb',money(debt));
+  setV('disp-equityMthb',money(eq));
+  setV('disp-deRatio',deRatioDisplay(current.debt));
+
+  document.getElementById('wasteInputs').classList.toggle('hidden',!isWasteModel());
+
+  const fuelBox=document.getElementById('inp-fitvOverride').closest('.p-3');
+  if(current.noFiTv){
+    document.getElementById('fitvHint').textContent='เทคโนโลยีนี้ไม่มี FiT-V: Total FiT = FiTx';
+  }else if(current.fitvOverride!==null){
+    document.getElementById('fitvHint').textContent='';
+  }else if(current.fuelUnit==='THB/GJ'){
+    document.getElementById('fitvHint').textContent='FiT-V = Fuel Cost × Net Heat Rate ÷ 1,000,000 ตามสูตรใน Excel';
+  }else if(current.fuelUnit==='THB/ton'){
+    document.getElementById('fitvHint').textContent='THB/ton ต้องมี FiT-V Override เนื่องจากสูตร Heat Rate ใน Excel ใช้กับ THB/GJ';
+  }else{
+    document.getElementById('fitvHint').textContent='ไม่มีค่า FiT-V';
+  }
+
+  const r=runCalculations();
+  if(r.error){
+    ['res-totalFit','res-fitx','res-fitv','res-projIRR','res-eqIRR','res-lcoe'].forEach(id=>document.getElementById(id).textContent='—');
+    return;
+  }
+
+  document.getElementById('res-totalFit').textContent=fmt(r.totalFiT,4);
+  document.getElementById('res-period').textContent=current.life;
+  document.getElementById('res-fitx').textContent=(!r.displaySplit)?'—':fmt(r.fitx,4);
+  document.getElementById('res-fitv').textContent=(!r.displayFiTv||!r.displaySplit)?'—':fmt(r.fitv,4);
+  document.getElementById('res-premium').textContent=current.premium>0?`${fmt(current.premium,4)} THB/kWh × ${current.premYrs} yr`:'—';
+  document.getElementById('res-projIRR').textContent=r.projIRR===null?'N/A':fmt(r.projIRR,2)+'%';
+  document.getElementById('res-eqIRR').textContent=r.eqIRR===null?'N/A':fmt(r.eqIRR,2)+'%';
+  document.getElementById('res-projPayback').textContent='Payback: '+(r.projPayback===null?'> project life':fmt(r.projPayback,2)+' yr');
+  document.getElementById('res-eqPayback').textContent='Payback: '+(r.eqPayback===null?'> project life':fmt(r.eqPayback,2)+' yr');
+  document.getElementById('res-lcoe').textContent=fmt(r.lcoe,4);
+
+  const st=document.getElementById('resultStatus');
+  st.textContent=r.referenceMode?'REFERENCE':'CALCULATED';
+  st.className='text-[10px] font-bold px-2 py-1 rounded-full '+(r.referenceMode?'bg-emerald-100 text-emerald-700':'bg-blue-100 text-blue-700');
+
+  document.getElementById('calcNote').textContent=r.referenceMode
+    ? ''
+    : 'คำนวณ FiTx ด้วย Goal Seek ที่ Target Project IRR และใช้สูตร Cash Flow/Tax/Debt/LCOE ตาม Financial Model ใน Excel';
+}
+
+function saveCase(){
+  if(savedCases.length>=15){showError('บันทึกได้สูงสุด 15 รายการ');return;}
+  const r=runCalculations();if(r.error)return;
+  const row={
+    id:Date.now(),
+    name:document.getElementById('customName').value.trim()||current.name,
+    group:current.group,
+    capex:current.capex,opexPct:current.opexPct,pf:current.pf,deg:current.deg,life:current.life,
+    deRatio:deRatioDisplay(current.debt),debt:current.debt,interest:current.interest,term:current.term,
+    tax:current.tax,taxHoliday:holidayDisplay(current),infl:current.infl,
+    projIRR:r.projIRR,eqIRR:r.eqIRR,total:r.totalFiT,
+    fitx:r.displaySplit?r.fitx:null,
+    fitv:(r.displaySplit&&r.displayFiTv)?r.fitv:null,
+    premium:current.premium
+  };
+  savedCases.push(row);
+  localStorage.setItem('fitCalculatorCasesV3',JSON.stringify(savedCases));
+  renderTable();
+}
+function removeCase(id){
+  savedCases=savedCases.filter(x=>x.id!==id);
+  localStorage.setItem('fitCalculatorCasesV3',JSON.stringify(savedCases));
+  renderTable();
+}
+function renderTable(){
+  const b=document.getElementById('comparisonBody');
+  document.getElementById('exportBtn').classList.toggle('hidden',savedCases.length===0);
+  if(!savedCases.length){
+    b.innerHTML='<tr><td colspan="19" class="p-10 text-center text-slate-400">ยังไม่มีข้อมูลเปรียบเทียบ</td></tr>';
+    return;
+  }
+  b.innerHTML=savedCases.map(c=>`<tr class="border-t">
+    <td class="px-3 py-2 text-left min-w-[240px] whitespace-normal"><b>${c.name}</b><br><span class="text-[10px] text-slate-400">${c.group}</span></td>
+    <td class="td">${fmt(c.capex,3)}</td>
+    <td class="td">${fmt(c.opexPct,3)}</td>
+    <td class="td">${fmt(c.pf,2)}</td>
+    <td class="td">${fmt(c.deg,2)}</td>
+    <td class="td">${fmt(c.life,0)}</td>
+    <td class="td">${c.deRatio}</td>
+    <td class="td">${fmt(c.interest,2)}</td>
+    <td class="td">${fmt(c.term,0)}</td>
+    <td class="td">${fmt(c.tax,2)}</td>
+    <td class="td">${c.taxHoliday}</td>
+    <td class="td">${fmt(c.infl,2)}</td>
+    <td class="td">${fmt(c.projIRR,2)}</td>
+    <td class="td">${fmt(c.eqIRR,2)}</td>
+    <td class="td font-bold text-indigo-700">${fmt(c.total,4)}</td>
+    <td class="td">${fmt(c.fitx,4)}</td>
+    <td class="td">${fmt(c.fitv,4)}</td>
+    <td class="td">${c.premium>0?fmt(c.premium,4):'—'}</td>
+    <td class="td"><button onclick="removeCase(${c.id})" class="text-red-500">ลบ</button></td>
+  </tr>`).join('');
+  for(const el of b.querySelectorAll('.td'))el.className+=' px-3 py-2 text-right border-l';
+}
+
+function exportCSV(){
+  const h=['Case','Group','CAPEX (THB/W)','OPEX (%)','PF (%)','Degradation (%)','Project Duration (yr)','D/E Ratio','Interest Rate (%)','Debt Term (yr)','Income Tax (%)','Tax Holiday (yr)','Inflation Rate (%)','Project IRR (%)','Equity IRR (%)','Total FiT','FiTx','FiTv','FiT Premium'];
+  const esc=v=>'"'+String(v??'').replaceAll('"','""')+'"';
+  const rows=savedCases.map(c=>[c.name,c.group,c.capex,c.opexPct,c.pf,c.deg,c.life,c.deRatio,c.interest,c.term,c.tax,c.taxHoliday,c.infl,c.projIRR,c.eqIRR,c.total,c.fitx,c.fitv,c.premium]);
+  const blob=new Blob(['\uFEFF'+[h,...rows].map(r=>r.map(esc).join(',')).join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='FiT_Calculator_Comparison.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* Internal formula regression tests against the uploaded Excel workbook values. */
+function excelFormulaSelfTest(){
+  const backup=current ? JSON.parse(JSON.stringify(current)) : null;
+  const pristine=templatePristine;
+
+  // Financial Model (สอนใช้): expected IRR/LCOE from workbook
+  current={
+    group:'Solar',noFiTv:true,cap_kw:1000,pf:16,life:25,deg:-0.8,capex:24,opexPct:1.5,
+    other_cost:0,other_growth:0,reinvest:0,debt:60,interest:6.5,term:10,tax:20,hol1:8,hol2:0,
+    infl:2.5,discount_rate:10,premium:0,premYrs:0,import_waste:0,tipping_fee:0,tipping_growth:0
+  };
+  let c=generateExcelCF(2.1588,{includePremium:true});
+  let p=calcIRRExcel(c.projCF,0.15),e=calcIRRExcel(c.eqCF,0.15);
+  const t1=Math.abs(p-0.07981761558723588)<1e-9 && Math.abs(e-0.08827172461993005)<1e-9 && Math.abs(c.lcoe-2.359128169241299)<1e-9;
+
+  // Financial Model: expected IRR/LCOE from workbook
+  current={
+    group:'MSW',noFiTv:false,cap_kw:1000,pf:65,life:20,deg:0,capex:160.12,opexPct:11.5,
+    other_cost:0,other_growth:0,reinvest:0,debt:60,interest:6.5,term:10,tax:20,hol1:8,hol2:0,
+    infl:1.13,discount_rate:10,premium:0,premYrs:0,import_waste:14887.5909,tipping_fee:500,tipping_growth:10
+  };
+  c=generateExcelCF(5.36126472128622,{includePremium:true});
+  p=calcIRRExcel(c.projCF,0.15);e=calcIRRExcel(c.eqCF,0.15);
+  const t2=Math.abs(p-0.09992412708176324)<1e-9 && Math.abs(e-0.12270971489034976)<1e-8 && Math.abs(c.lcoe-6.788537088549739)<1e-9;
+
+  console.log('Excel formula regression:',{teachingSheet:t1,financialModel:t2});
+  console.assert(t1&&t2,'Excel formula regression failed');
+
+  current=backup; templatePristine=pristine;
+  return t1&&t2;
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const sel=document.getElementById('templateSelect');
+  const blankOption=document.createElement('option');
+  blankOption.value='blank';
+  blankOption.textContent='Blank template';
+  sel.appendChild(blankOption);
+  templates.forEach(t=>{
+    const o=document.createElement('option');
+    o.value=t.id;
+    o.textContent=`[${t.group}] ${t.name}`;
+    sel.appendChild(o);
+  });
+  excelFormulaSelfTest();
+  selectTemplate(templates[0].id);
+  renderTable();
+});
+</script>
+</body>
+</html>
