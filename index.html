@@ -1,0 +1,3778 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FiT Calculator — Financial Model</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+ body{font-family:'Sarabun',sans-serif} .num{font-variant-numeric:tabular-nums} .custom-scrollbar::-webkit-scrollbar{height:8px} .custom-scrollbar::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px}
+.td{padding:.5rem .75rem;text-align:right;border-left:1px solid #e2e8f0}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+<div id="app" class="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
+  <header class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col lg:flex-row justify-between gap-4 lg:items-end">
+    <div>
+      <div class="text-xs font-bold tracking-widest text-blue-600 uppercase">Financial Model</div>
+      <h1 class="text-2xl md:text-3xl font-black text-slate-900 mt-1">FiT Calculator</h1>
+    </div>
+    <div class="w-full lg:w-[460px]">
+      <label class="text-xs font-semibold text-slate-500 uppercase">เลือกแม่แบบ (Template)</label>
+      <select id="templateSelect" onchange="selectTemplate(this.value)" class="mt-1 w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium"></select>
+    </div>
+  </header>
+
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+    <section class="xl:col-span-8 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+      <div class="flex justify-end border-b pb-4">
+        <div class="flex bg-slate-100 p-1 rounded-lg">
+          <button id="btnModeFitx" onclick="setCalcMode('FIND_FITX')" class="px-4 py-1.5 text-sm rounded-md font-semibold bg-white shadow-sm text-blue-600">หา FiT เป้าหมาย</button>
+          <button id="btnModeIrr" onclick="setCalcMode('FIND_IRR')" class="px-4 py-1.5 text-sm rounded-md text-slate-500 font-medium">หา IRR จาก FiT</button>
+        </div>
+      </div>
+
+      <div id="overrideContainer" class="p-4 bg-orange-50 rounded-xl border border-orange-200 hidden">
+        <label class="text-sm font-bold text-orange-800">Total FiT (THB/kWh)</label>
+        <input type="number" step="0.0001" id="input-overrideFiT" onchange="setOverrideFiT(this.value)" class="mt-2 w-full max-w-xs p-2 border border-orange-300 rounded-lg text-sm bg-white" />
+      </div>
+
+      <div id="fixedVariablesBox" class="p-4 bg-violet-50 border border-violet-200 rounded-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-violet-900">Fixed Variables</h3>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="selectAllAllowedFixedVariables()" class="px-3 py-1.5 rounded-lg bg-violet-700 border border-violet-700 text-xs font-bold text-white hover:bg-violet-800">เลือกทั้งหมด</button>
+            <button type="button" onclick="clearAllFixedVariables()" class="px-3 py-1.5 rounded-lg bg-white border border-violet-300 text-xs font-bold text-violet-700 hover:bg-violet-100">Clear Fixed</button>
+          </div>
+        </div>
+        <div id="fixedVariablesList"></div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="space-y-4">
+          <h3 class="font-bold text-blue-800 bg-blue-50 py-2 px-3 rounded-lg border-l-4 border-blue-500">Technical Assumptions</h3>
+          <div class="grid grid-cols-2 gap-4">
+            
+            <div><label class="lbl">Installed Capacity (kW)</label><input id="inp-cap_kw" type="number" step="0.01" onchange="param('cap_kw',this.value)" class="inp"></div>
+            <div><label class="lbl">Plant Factor (%)</label><input id="inp-pf" type="number" step="0.0001" onchange="param('pf',this.value)" class="inp"></div>
+            <div><label class="lbl">CAPEX (THB/W)</label><input id="inp-capex" type="number" step="0.001" onchange="param('capex',this.value)" class="inp font-bold text-blue-700"></div>
+            <div><label class="lbl">Investment Cost (MTHB/MW)</label><input id="disp-capexMthb" disabled class="inp bg-slate-100"></div>
+            <div><label class="lbl">O&M (% of CAPEX/yr)</label><input id="inp-opexPct" type="number" step="0.001" onchange="param('opexPct',this.value)" class="inp"></div>
+            <div><label class="lbl">O&M Yr.0 (MTHB/yr)</label><input id="disp-opexMthb" disabled class="inp bg-slate-100"></div>
+            <div><label class="lbl">Project Life (yr)</label><input id="inp-life" type="number" onchange="param('life',this.value)" class="inp"></div>
+            <div><label class="lbl">Degradation (%)</label><input id="inp-deg" type="number" step="0.01" onchange="param('deg',this.value)" class="inp"></div>
+            <div class="col-span-2"><label class="lbl">Electricity Exported Yr.1 (MWh)</label><input id="disp-energy" disabled class="inp bg-slate-100 font-semibold"></div>
+          </div>
+
+          <div class="p-3 bg-cyan-50 border border-cyan-200 rounded-xl space-y-3">
+            <div class="text-xs font-bold text-cyan-800 uppercase">Fuel / FiT-V</div>
+            <div class="grid grid-cols-2 gap-4">
+              <div><label class="lbl">Fuel Cost</label><input id="inp-fuelCost" type="number" step="0.0001" onchange="fuelParam('fuelCost',this.value)" class="inp bg-white"></div>
+              <div><label class="lbl">Fuel Cost Unit</label><select id="inp-fuelUnit" onchange="fuelUnitChange(this.value)" class="inp bg-white"><option value="-">-</option><option value="THB/GJ">THB/GJ</option><option value="THB/ton">THB/ton</option></select></div>
+              <div><label class="lbl">Net Heat Rate (kJ/kWh)</label><input id="inp-heatRate" type="number" step="0.01" onchange="fuelParam('heatRate',this.value)" class="inp bg-white"></div>
+              <div><label class="lbl">FiT-V Override (THB/kWh)</label><input id="inp-fitvOverride" type="number" step="0.0001" onchange="fitvOverrideChange(this.value)" placeholder="ว่าง = Auto" class="inp bg-white"></div>
+            </div>
+            <p id="fitvHint" class="text-[11px] text-cyan-800"></p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="lbl">Other Cost (MTHB/yr)</label><input id="inp-other_cost" type="number" step="0.01" onchange="param('other_cost',this.value)" class="inp"></div>
+            <div><label class="lbl">Other Cost Growth (%)</label><input id="inp-other_growth" type="number" step="0.01" onchange="param('other_growth',this.value)" class="inp"></div>
+            <div><label class="lbl">Reinvestment @ Year 11 (MTHB)</label><input id="inp-reinvest" type="number" step="0.01" onchange="param('reinvest',this.value)" class="inp"></div>
+          </div>
+
+          <div id="wasteInputs" class="p-3 bg-amber-50 border border-amber-200 rounded-xl hidden">
+            <div class="text-xs font-bold text-amber-800 uppercase mb-3">Waste-specific revenue</div>
+            <div class="grid grid-cols-3 gap-3">
+              <div><label class="lbl">Waste (ton/yr)</label><input id="inp-import_waste" type="number" onchange="param('import_waste',this.value)" class="inp bg-white"></div>
+              <div><label class="lbl">Tipping Fee (THB/ton)</label><input id="inp-tipping_fee" type="number" step="0.01" onchange="param('tipping_fee',this.value)" class="inp bg-white"></div>
+              <div><label class="lbl">Growth (%)</label><input id="inp-tipping_growth" type="number" step="0.01" onchange="param('tipping_growth',this.value)" class="inp bg-white"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="font-bold text-emerald-800 bg-emerald-50 py-2 px-3 rounded-lg border-l-4 border-emerald-500">Financial Assumptions</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="lbl">Debt (%)</label><input id="inp-debt" type="number" min="0" max="100" step="0.01" onchange="param('debt',this.value)" class="inp"></div>
+            <div><label class="lbl">D/E Ratio</label><input id="disp-deRatio" disabled class="inp bg-slate-100"></div>
+            <div><label class="lbl">Debt (MTHB)</label><input id="disp-debtMthb" disabled class="inp bg-slate-100"></div>
+            <div><label class="lbl">Equity (MTHB)</label><input id="disp-equityMthb" disabled class="inp bg-slate-100"></div>
+            <div><label class="lbl">Interest Rate (%)</label><input id="inp-interest" type="number" step="0.01" onchange="param('interest',this.value)" class="inp"></div>
+            <div><label class="lbl">Debt Term (yr)</label><input id="inp-term" type="number" onchange="param('term',this.value)" class="inp"></div>
+            <div><label class="lbl">Income Tax (%)</label><input id="inp-tax" type="number" step="0.01" onchange="param('tax',this.value)" class="inp"></div>
+            <div><label class="lbl">Tax Holiday (yr)</label><input id="inp-hol1" type="number" onchange="param('hol1',this.value)" class="inp"></div>
+            <div><label class="lbl">Inflation (%)</label><input id="inp-infl" type="number" step="0.01" onchange="param('infl',this.value)" class="inp"></div>
+            <div><label class="lbl">Discount Rate (%)</label><input id="inp-discount_rate" type="number" step="0.01" onchange="param('discount_rate',this.value)" class="inp"></div>
+          </div>
+
+          <div id="baseGoalSeekBox" class="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+            <h4 class="text-xs font-bold text-slate-700 uppercase mb-3">FiT-X : Target for Goal Seek</h4>
+            <div class="mb-3">
+              <label class="lbl">Goal Seek By</label>
+              <select id="inp-goalSeekMetric" onchange="goalSeekMetricChanged(this.value)" class="inp bg-white">
+                <option value="PROJECT_IRR">Project IRR</option>
+                <option value="PROJECT_PAYBACK">Project Payback</option>
+                <option value="EQUITY_IRR">Equity IRR</option>
+                <option value="EQUITY_PAYBACK">Equity Payback</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="lbl">Target Project IRR (%)</label>
+                <input id="inp-targetProjIRR" type="number" step="0.01" onchange="paramNullable('targetProjIRR',this.value)" class="inp bg-white">
+              </div>
+              <div>
+                <label class="lbl">Target Project Payback (yr)</label>
+                <input id="inp-targetProjPayback" type="number" min="1" step="0.01" onchange="paramNullable('targetProjPayback',this.value)" class="inp bg-white">
+              </div>
+              <div>
+                <label class="lbl">Target Equity IRR (%)</label>
+                <input id="inp-targetEqIRR" type="number" step="0.01" onchange="paramNullable('targetEqIRR',this.value)" class="inp bg-white">
+              </div>
+              <div>
+                <label class="lbl">Target Equity Payback (yr)</label>
+                <input id="inp-targetEqPayback" type="number" min="1" step="0.01" onchange="paramNullable('targetEqPayback',this.value)" class="inp bg-white">
+              </div>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-2">กำหนดค่าเป้าหมายได้ทั้ง 4 ตัวแปร และเลือก Goal Seek By จำนวน 1 ตัวแปรต่อการคำนวณ เพื่อใช้หา FiT-X</p>
+          </div>
+
+          <div id="premiumGoalSeekBox" class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+              <div>
+                <h4 class="text-xs font-bold text-amber-800 uppercase">FiT-premium : Target for Goal Seek</h4>
+              </div>
+              <div class="min-w-[185px] p-3 bg-white/80 border border-amber-300 rounded-lg text-center">
+                <div class="text-[10px] font-bold uppercase tracking-wide text-amber-700">FiT Premium (THB/kWh)</div>
+                <div id="res-premium-goalseek" class="text-xl font-black text-amber-900 num mt-1">—</div>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="lbl">Premium Goal Seek By</label>
+                <select id="inp-premiumGoalSeekMetric" onchange="premiumGoalSeekMetricChanged(this.value)" class="inp bg-white">
+                  <option value="PROJECT_IRR">Project IRR</option>
+                  <option value="PROJECT_PAYBACK">Project Payback</option>
+                </select>
+              </div>
+              <div>
+                <label class="lbl">Premium Period (yr)</label>
+                <input id="inp-premYrs" type="number" min="0" step="1" inputmode="numeric" onchange="premiumPeriodChange(this.value)" class="inp bg-white" placeholder="จำนวนปีที่ได้รับ Premium">
+              </div>
+              <div>
+                <label class="lbl">Project IRR (%)</label>
+                <input id="inp-premiumLinkedProjIRR" type="number" step="0.01" onchange="paramNullable('targetProjIRR',this.value)" class="inp bg-white">
+              </div>
+              <div>
+                <label class="lbl">Project Payback (yr)</label>
+                <input id="inp-premiumLinkedProjPayback" type="number" min="1" step="0.01" onchange="paramNullable('targetProjPayback',this.value)" class="inp bg-white">
+              </div>
+            </div>
+            <button onclick="calculatePremiumNow()" class="mt-3 w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-sm flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-6 4h6m-6 4h2m4 0h.01M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"/>
+              </svg>
+              Calculate Premium
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <aside class="xl:col-span-4 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-4">
+      <div class="flex justify-between gap-2 items-start">
+        <h2 class="text-lg font-bold">Results</h2>
+        <span id="resultStatus" class="text-[10px] font-bold px-2 py-1 rounded-full"></span>
+      </div>
+      <div class="bg-gradient-to-br from-blue-700 to-indigo-800 text-white p-5 rounded-xl shadow-md text-center">
+        <div class="text-xs uppercase tracking-wider text-blue-100 font-semibold">Total FiT (THB/kWh)</div>
+        <div id="res-totalFit" class="text-4xl font-black mt-1 num">—</div>
+        <div class="text-[10px] text-blue-100 mt-2">Contract <span id="res-period"></span> yr</div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="p-3 bg-slate-50 rounded-lg border text-center"><div class="mini">FiT-X</div><div id="res-fitx" class="result">—</div></div>
+        <div class="p-3 bg-slate-50 rounded-lg border text-center"><div class="mini">FiT-V</div><div id="res-fitv" class="result">—</div></div>
+        <div class="p-3 bg-amber-50 rounded-lg border border-amber-200 text-center col-span-2"><div class="mini text-amber-700">FiT Premium</div><div id="res-premium" class="text-xl font-black text-amber-800 num">—</div></div>
+        <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-center"><div class="mini text-emerald-700">Project IRR</div><div id="res-projIRR" class="result text-emerald-800">—</div><div id="res-projPayback" class="text-xs text-emerald-700 mt-1"></div></div>
+        <div class="p-3 bg-indigo-50 rounded-lg border border-indigo-200 text-center"><div class="mini text-indigo-700">Equity IRR</div><div id="res-eqIRR" class="result text-indigo-800">—</div><div id="res-eqPayback" class="text-xs text-indigo-700 mt-1"></div></div>
+        <div class="p-3 bg-slate-50 rounded-lg border text-center col-span-2"><div class="mini">LCOE (THB/kWh)</div><div id="res-lcoe" class="text-2xl font-black mt-1 num">—</div></div>
+      </div>
+      <div id="calcNote" class="text-xs p-3 rounded-lg bg-slate-50 border text-slate-600"></div>
+      <div id="errorMsg" class="hidden text-xs font-semibold p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg"></div>
+      <div class="mt-auto space-y-2">
+        <button onclick="calculateNow()" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md flex items-center justify-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-6 4h6m-6 4h2m4 0h.01M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"/>
+          </svg>
+          Calculate
+        </button>
+        <button onclick="resetCurrentTemplate()" class="w-full py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-300 flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v6h6M20 20v-6h-6M5.5 15a7 7 0 0011.7 2.2L20 14M4 10l2.8-3.2A7 7 0 0118.5 9"/>
+          </svg>
+          Reset
+        </button>
+        <input type="text" id="customName" class="inp" placeholder="ชื่อ Case สำหรับบันทึก">
+        <button onclick="saveCase()" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold">บันทึกเปรียบเทียบ</button>
+      </div>
+    </aside>
+  </div>
+
+  <section class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+    <div class="flex flex-col sm:flex-row justify-between gap-3 mb-4 sm:items-center">
+      <div><h2 class="text-lg font-bold">Comparison</h2></div>
+      <button id="exportBtn" onclick="exportCSV()" class="hidden px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">Download CSV</button>
+    </div>
+    <div class="overflow-x-auto custom-scrollbar border rounded-xl">
+      <table class="w-full text-xs whitespace-nowrap">
+        <thead class="bg-slate-100"><tr><th class="th text-left">Case</th><th class="th">CAPEX<br>(THB/W)</th><th class="th">OPEX<br>(%)</th><th class="th">PF<br>(%)</th><th class="th">Degradation<br>(%)</th><th class="th">Project Duration<br>(yr)</th><th class="th">D/E Ratio</th><th class="th">Interest Rate<br>(%)</th><th class="th">Debt Term<br>(yr)</th><th class="th">Income Tax<br>(%)</th><th class="th">Tax Holiday<br>(yr)</th><th class="th">Inflation<br>(%)</th><th class="th">Project IRR<br>(%)</th><th class="th">Equity IRR<br>(%)</th><th class="th">Total FiT</th><th class="th">FiT-X</th><th class="th">FiTv</th><th class="th">FiT Premium</th><th class="th"></th></tr></thead>
+        <tbody id="comparisonBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+// UI helper classes
+for (const el of document.querySelectorAll('.lbl')) el.className='text-xs font-semibold text-slate-600';
+for (const el of document.querySelectorAll('.inp')) el.className += ' mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500';
+for (const el of document.querySelectorAll('.mini')) el.className += ' text-[10px] font-bold uppercase tracking-wide text-slate-500';
+for (const el of document.querySelectorAll('.result')) el.className += ' text-xl font-black mt-1 num';
+for (const el of document.querySelectorAll('.th')) el.className += ' px-3 py-3 text-right border-r border-slate-200';
+
+const templates = [
+  {
+    "id": 1,
+    "group": "Solar",
+    "name": "ปี 2556 Solar Rooftop | บ้านอยู่อาศัย",
+    "cap_kw": 10,
+    "capex": 63.7,
+    "pf": 14.84,
+    "deg": -1,
+    "life": 25,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 10,
+    "hol1": 0,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.7,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 0.68,
+    "refTotal": 6.96,
+    "refFiTx": 6.96,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.7,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.7,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 2,
+    "group": "Solar",
+    "name": "ปี 2556 Solar Rooftop | อาคารธุรกิจขนาดเล็ก",
+    "cap_kw": 250,
+    "capex": 58.4,
+    "pf": 14.84,
+    "deg": -1,
+    "life": 25,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 15,
+    "hol1": 0,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.7,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 0.6,
+    "refTotal": 6.85,
+    "refFiTx": 6.85,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.7,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.7,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 3,
+    "group": "Solar",
+    "name": "ปี 2556 Solar Rooftop | อาคารธุรกิจขนาดใหญ่/โรงงาน",
+    "cap_kw": 1000,
+    "capex": 58.2,
+    "pf": 14.84,
+    "deg": -1,
+    "life": 25,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 10.4,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 0.57,
+    "refTotal": 6.16,
+    "refFiTx": 6.16,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.4,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.4,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 4,
+    "group": "Solar",
+    "name": "ปี 2557 Solar Rooftop | บ้านอยู่อาศัย",
+    "cap_kw": 10,
+    "capex": 62.4,
+    "pf": 14.84,
+    "deg": -1,
+    "life": 25,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 10,
+    "hol1": 0,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.7,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 0.69,
+    "refTotal": 6.85,
+    "refFiTx": 6.85,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.7,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.7,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 5,
+    "group": "Solar",
+    "name": "ปี 2557 Solar Rooftop | อาคารธุรกิจขนาดเล็ก",
+    "cap_kw": 250,
+    "capex": 57,
+    "pf": 14.84,
+    "deg": -1,
+    "life": 25,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 15,
+    "hol1": 0,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.7,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 0.62,
+    "refTotal": 6.4,
+    "refFiTx": 6.4,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.7,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.7,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 6,
+    "group": "Solar",
+    "name": "ปี 2557 Solar Rooftop | อาคารธุรกิจขนาดใหญ่/โรงงาน",
+    "cap_kw": 1000,
+    "capex": 56.8,
+    "pf": 14.84,
+    "deg": -1,
+    "life": 25,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 10.4,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 0.59,
+    "refTotal": 6.01,
+    "refFiTx": 6.01,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.4,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.4,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 7,
+    "group": "Solar",
+    "name": "ปี 2557 Solar Ground mount",
+    "cap_kw": 90000,
+    "capex": 54,
+    "pf": 16,
+    "deg": -0.8,
+    "life": 25,
+    "debt": 70,
+    "interest": 6.5,
+    "term": 10,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 9.5,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 2,
+    "refTotal": 5.66,
+    "refFiTx": 5.66,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 9.5,
+    "refEqIRR": 12,
+    "targetProjIRR": 9.5,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 8,
+    "group": "Solar",
+    "name": "ปี 2559 Solar Ground mount",
+    "cap_kw": 90000,
+    "capex": 42.2,
+    "pf": 16,
+    "deg": -0.8,
+    "life": 25,
+    "debt": 70,
+    "interest": 6.5,
+    "term": 10,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 8.5,
+    "eqIRR": 10,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 2,
+    "refTotal": 4.12,
+    "refFiTx": 4.12,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 8.5,
+    "refEqIRR": 10,
+    "targetProjIRR": 8.5,
+    "targetEqIRR": 10,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 9,
+    "group": "Solar",
+    "name": "ปี 2562 Solar ชุมชนเพื่อเศรษฐกิจฐานราก",
+    "cap_kw": 10000,
+    "capex": 26,
+    "pf": 16,
+    "deg": -0.8,
+    "life": 25,
+    "debt": 70,
+    "interest": 6.5,
+    "term": 10,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10,
+    "eqIRR": 13,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 2,
+    "refTotal": 2.9,
+    "refFiTx": 2.9,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10,
+    "refEqIRR": 13,
+    "targetProjIRR": 10,
+    "targetEqIRR": 13,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 10,
+    "group": "Solar",
+    "name": "ปี 2565 RE Biglot | Solar Ground mount",
+    "cap_kw": 90000,
+    "capex": 25.8,
+    "pf": 16,
+    "deg": 0,
+    "life": 25,
+    "debt": 70,
+    "interest": 6,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 8,
+    "eqIRR": 9,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 1.5,
+    "refTotal": 2.1679,
+    "refFiTx": 2.1679,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 8,
+    "refEqIRR": 9,
+    "targetProjIRR": 8,
+    "targetEqIRR": 9,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 12,
+    "group": "Wind",
+    "name": "ปี 2557 | VSPP",
+    "cap_kw": 10000,
+    "capex": 64,
+    "pf": 18,
+    "deg": 0,
+    "life": 25,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 10.3,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 2,
+    "refTotal": 6.06,
+    "refFiTx": 6.06,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.3,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.3,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 13,
+    "group": "Wind",
+    "name": "ปี 2565 | RE Biglot",
+    "cap_kw": 90000,
+    "capex": 54.7,
+    "pf": 25,
+    "deg": 0,
+    "life": 25,
+    "debt": 60,
+    "interest": 6,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 8,
+    "eqIRR": 8.8,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 2,
+    "refTotal": 3.1014,
+    "refFiTx": 3.1014,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 8,
+    "refEqIRR": 8.8,
+    "targetProjIRR": 8,
+    "targetEqIRR": 8.8,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 14,
+    "group": "Hydro",
+    "name": "ปี 2557 | VSPP (Hydro)",
+    "cap_kw": 200,
+    "capex": 99.5,
+    "pf": 41,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7.5,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 10.7,
+    "eqIRR": 12,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 4,
+    "refTotal": 4.9,
+    "refFiTx": 4.9,
+    "refFiTv": 0,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10.7,
+    "refEqIRR": 12,
+    "targetProjIRR": 10.7,
+    "targetEqIRR": 12,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 15,
+    "group": "Biomass",
+    "name": "ปี 2557 | VSPP เปลี่ยนผ่าน Adder (≤ 1 MW)",
+    "cap_kw": 1000,
+    "capex": 90,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7.5,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 13.1,
+    "eqIRR": 16,
+    "fuelCost": 121,
+    "heatRate": 18250,
+    "premium": 0.5,
+    "premYrs": 8,
+    "opexPct": 7.5,
+    "refTotal": 5.34,
+    "refFiTx": 3.13,
+    "refFiTv": 2.21,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 13.1,
+    "refEqIRR": 16,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.1,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 16,
+    "group": "Biomass",
+    "name": "ปี 2557 | VSPP เปลี่ยนผ่าน Adder (>1-3 MW)",
+    "cap_kw": 3000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 13,
+    "eqIRR": 17.3,
+    "fuelCost": 121,
+    "heatRate": 18250,
+    "premium": 0.4,
+    "premYrs": 8,
+    "opexPct": 7.5,
+    "refTotal": 4.82,
+    "refFiTx": 2.61,
+    "refFiTv": 2.21,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 13,
+    "refEqIRR": 17.3,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.8,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 17,
+    "group": "Biomass",
+    "name": "ปี 2557 | VSPP เปลี่ยนผ่าน Adder (>3-10 MW)",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 12.2,
+    "eqIRR": 15.7,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0.3,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 4.24,
+    "refFiTx": 2.39,
+    "refFiTv": 1.85,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 12.2,
+    "refEqIRR": 15.7,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.7,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 18,
+    "group": "Biomass",
+    "name": "ปี 2560 | VSPP ชีวมวลประชารัฐ (≤ 3 MW)",
+    "cap_kw": 3000,
+    "capex": 78.513,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 12,
+    "eqIRR": 15,
+    "fuelCost": 121,
+    "heatRate": 18250,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 7.5,
+    "refTotal": 5.14,
+    "refFiTx": 2.93,
+    "refFiTv": 2.21,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 12,
+    "refEqIRR": 15,
+    "targetProjIRR": 12,
+    "targetEqIRR": 15,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 19,
+    "group": "Biomass",
+    "name": "ปี 2560 | VSPP ชีวมวลประชารัฐ (>3-10 MW)",
+    "cap_kw": 10000,
+    "capex": 78.513,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 11,
+    "eqIRR": 13.3,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 6,
+    "refTotal": 4.45,
+    "refFiTx": 2.6,
+    "refFiTv": 1.85,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 11,
+    "refEqIRR": 13.3,
+    "targetProjIRR": 11,
+    "targetEqIRR": 13.3,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 20,
+    "group": "Biomass",
+    "name": "ปี 2560 | VSPP Semi-firm (≤ 3 MW)",
+    "cap_kw": 3000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 13,
+    "eqIRR": 17.3,
+    "fuelCost": 121,
+    "heatRate": 18250,
+    "premium": 0.4,
+    "premYrs": 8,
+    "opexPct": 7.5,
+    "refTotal": 4.82,
+    "refFiTx": 2.61,
+    "refFiTv": 2.21,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 13,
+    "refEqIRR": 17.3,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.8,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 21,
+    "group": "Biomass",
+    "name": "ปี 2560 | VSPP Semi-firm (>3-10 MW)",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 12.2,
+    "eqIRR": 15.7,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0.3,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 4.24,
+    "refFiTx": 2.39,
+    "refFiTv": 1.85,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 12.2,
+    "refEqIRR": 15.7,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.8,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 22,
+    "group": "Biomass",
+    "name": "ปี 2560 | SPP Hybrid Firm (>10-90 MW)",
+    "cap_kw": 50000,
+    "capex": 65,
+    "pf": 80,
+    "deg": 0,
+    "life": 20,
+    "debt": 70,
+    "interest": 6.5,
+    "term": 10,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10,
+    "eqIRR": 13.5,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 6,
+    "refTotal": 3.66,
+    "refFiTx": 1.81,
+    "refFiTv": 1.85,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 10,
+    "refEqIRR": 13.5,
+    "targetProjIRR": 10,
+    "targetEqIRR": 13.5,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 23,
+    "group": "Biomass",
+    "name": "ปี 2562 | VSPP รฟ.ชุมชน (≤ 3 MW)",
+    "cap_kw": 3000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.1,
+    "eqIRR": 11.8,
+    "fuelCost": 121,
+    "heatRate": 18250,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 7.5,
+    "refTotal": 4.8482,
+    "refFiTx": 2.61,
+    "refFiTv": 2.2382,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 10.1,
+    "refEqIRR": 11.8,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.8,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 24,
+    "group": "Biomass",
+    "name": "ปี 2562 | VSPP รฟ.ชุมชน (>3-10 MW)",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.1,
+    "eqIRR": 11.8,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 6,
+    "refTotal": 4.2636,
+    "refFiTx": 2.39,
+    "refFiTv": 1.8736,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 10.1,
+    "refEqIRR": 11.8,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.8,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 25,
+    "group": "Biogas",
+    "name": "ปี 2557 VSPP | น้ำเสีย/ของเสีย",
+    "cap_kw": 10000,
+    "capex": 126,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7.5,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 12.1,
+    "eqIRR": 14.3,
+    "fuelCost": 0,
+    "heatRate": 10526,
+    "premium": 0.5,
+    "premYrs": 8,
+    "opexPct": 5,
+    "refTotal": 3.76,
+    "refFiTx": null,
+    "refFiTv": null,
+    "splitProvided": false,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 12.1,
+    "refEqIRR": 14.3,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.0,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 26,
+    "group": "Biogas",
+    "name": "ปี 2557 VSPP | พืชพลังงาน",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 78,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 13.2,
+    "eqIRR": 16.6,
+    "fuelCost": 500,
+    "heatRate": 10526,
+    "premium": 0.5,
+    "premYrs": 8,
+    "opexPct": 5,
+    "refTotal": 5.34,
+    "refFiTx": 2.79,
+    "refFiTv": 2.55,
+    "splitProvided": true,
+    "fitvOverride": 2.55,
+    "fuelUnit": "THB/ton",
+    "sourceDetailed": true,
+    "refProjIRR": 13.2,
+    "refEqIRR": 16.6,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.4,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 27,
+    "group": "Biogas",
+    "name": "ปี 2560 VSPP Semi-firm | น้ำเสีย/ของเสีย",
+    "cap_kw": 10000,
+    "capex": 126,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7.5,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 12.1,
+    "eqIRR": 14.3,
+    "fuelCost": 0,
+    "heatRate": 10526,
+    "premium": 0.5,
+    "premYrs": 8,
+    "opexPct": 5,
+    "refTotal": 3.76,
+    "refFiTx": null,
+    "refFiTv": null,
+    "splitProvided": false,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 12.1,
+    "refEqIRR": 14.3,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.0,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 28,
+    "group": "Biogas",
+    "name": "ปี 2560 VSPP Semi-firm | พืชพลังงาน",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 78,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 13.3,
+    "eqIRR": 16.5,
+    "fuelCost": 500,
+    "heatRate": 10526,
+    "premium": 0.5,
+    "premYrs": 8,
+    "opexPct": 5,
+    "refTotal": 5.34,
+    "refFiTx": 2.79,
+    "refFiTv": 2.55,
+    "splitProvided": true,
+    "fitvOverride": 2.55,
+    "fuelUnit": "THB/ton",
+    "sourceDetailed": true,
+    "refProjIRR": 13.3,
+    "refEqIRR": 16.5,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.5,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 29,
+    "group": "Biogas",
+    "name": "ปี 2562 รฟ.ชุมชน | น้ำเสีย/ของเสีย",
+    "cap_kw": 10000,
+    "capex": 126,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7.5,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10,
+    "eqIRR": 11,
+    "fuelCost": 0,
+    "heatRate": 10526,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 5,
+    "refTotal": 3.76,
+    "refFiTx": null,
+    "refFiTv": null,
+    "splitProvided": false,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 10,
+    "refEqIRR": 11,
+    "targetProjIRR": 10,
+    "targetEqIRR": 11,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 30,
+    "group": "Biogas",
+    "name": "ปี 2562 รฟ.ชุมชน | พืชพลังงาน 100%",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 78,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.1,
+    "eqIRR": 11.5,
+    "fuelCost": 500,
+    "heatRate": 10526,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 5,
+    "refTotal": 5.3725,
+    "refFiTx": 2.79,
+    "refFiTv": 2.5825,
+    "splitProvided": true,
+    "fitvOverride": 2.5825,
+    "fuelUnit": "THB/ton",
+    "sourceDetailed": true,
+    "refProjIRR": 10.1,
+    "refEqIRR": 11.5,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.5,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 31,
+    "group": "Biogas",
+    "name": "ปี 2562 รฟ.ชุมชน | พืชพลังงาน+น้ำเสีย",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 78,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10.1,
+    "eqIRR": 11.5,
+    "fuelCost": 500,
+    "heatRate": 10526,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 5,
+    "refTotal": 4.7269,
+    "refFiTx": 2.79,
+    "refFiTv": 1.9369,
+    "splitProvided": true,
+    "fitvOverride": 1.9369,
+    "fuelUnit": "THB/ton",
+    "sourceDetailed": true,
+    "refProjIRR": 10.1,
+    "refEqIRR": 11.5,
+    "targetProjIRR": 10.1,
+    "targetEqIRR": 11.5,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 32,
+    "group": "Biogas",
+    "name": "ปี 2565 RE Biglot | น้ำเสีย/ของเสีย",
+    "cap_kw": 90000,
+    "capex": 70,
+    "pf": 75,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 6,
+    "term": 8,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 0,
+    "projIRR": 8,
+    "eqIRR": 8.7,
+    "fuelCost": 0,
+    "heatRate": 9468,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 7.5,
+    "refTotal": 2.0724,
+    "refFiTx": null,
+    "refFiTv": null,
+    "splitProvided": false,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 8,
+    "refEqIRR": 8.7,
+    "targetProjIRR": 8,
+    "targetEqIRR": 8.7,
+    "other_growth": 0,
+    "noFiTv": true
+  },
+  {
+    "id": 33,
+    "group": "MSW",
+    "name": "ปี 2557 | RDF/Thermal (≤ 1 MW)",
+    "cap_kw": 1000,
+    "capex": 90,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 50,
+    "interest": 7.5,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 14.4,
+    "eqIRR": 18.3,
+    "fuelCost": 176,
+    "heatRate": 18250,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 7.5,
+    "refTotal": 6.34,
+    "refFiTx": 3.13,
+    "refFiTv": 3.21,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 14.4,
+    "refEqIRR": 18.3,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.1,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 34,
+    "group": "MSW",
+    "name": "ปี 2557 | RDF/Thermal (>1-3 MW)",
+    "cap_kw": 3000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 15.4,
+    "eqIRR": 22.2,
+    "fuelCost": 176,
+    "heatRate": 18250,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 7.5,
+    "refTotal": 5.82,
+    "refFiTx": 2.61,
+    "refFiTv": 3.21,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 15.4,
+    "refEqIRR": 22.2,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.8,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 35,
+    "group": "MSW",
+    "name": "ปี 2557 | RDF/Thermal (>3-10 MW)",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 15.3,
+    "eqIRR": 21.9,
+    "fuelCost": 176,
+    "heatRate": 15295,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 5.08,
+    "refFiTx": 2.39,
+    "refFiTv": 2.69,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 15.3,
+    "refEqIRR": 21.9,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.7,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 36,
+    "group": "MSW",
+    "name": "ปี 2557 | Landfill (≤ 10 MW)",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 60,
+    "deg": 0,
+    "life": 10,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 13.6,
+    "eqIRR": 21.4,
+    "fuelCost": 0,
+    "heatRate": 0,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 12.5,
+    "refTotal": 5.6,
+    "refFiTx": null,
+    "refFiTv": null,
+    "splitProvided": false,
+    "fitvOverride": null,
+    "fuelUnit": "-",
+    "sourceDetailed": true,
+    "refProjIRR": 13.6,
+    "refEqIRR": 21.4,
+    "targetProjIRR": 13.6,
+    "targetEqIRR": 21.4,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 37,
+    "group": "MSW",
+    "name": "ปี 2560 | SPP (>10-50 MW)",
+    "cap_kw": 50000,
+    "capex": 65,
+    "pf": 80,
+    "deg": 0,
+    "life": 20,
+    "debt": 70,
+    "interest": 6.5,
+    "term": 10,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10,
+    "eqIRR": 13.5,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 6,
+    "refTotal": 3.66,
+    "refFiTx": 1.81,
+    "refFiTv": 1.85,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 10,
+    "refEqIRR": 13.5,
+    "targetProjIRR": 10,
+    "targetEqIRR": 13.5,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 38,
+    "group": "MSW",
+    "name": "ปี 2565 RE Biglot | VSPP (≤ 10 MW)",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 15.3,
+    "eqIRR": 21.9,
+    "fuelCost": 176,
+    "heatRate": 15295,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 5.08,
+    "refFiTx": 2.39,
+    "refFiTv": 2.69,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 15.3,
+    "refEqIRR": 21.9,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.7,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 39,
+    "group": "MSW",
+    "name": "ปี 2565 RE Biglot | SPP (>10-50 MW)",
+    "cap_kw": 50000,
+    "capex": 65,
+    "pf": 80,
+    "deg": 0,
+    "life": 20,
+    "debt": 70,
+    "interest": 6.5,
+    "term": 10,
+    "tax": 20,
+    "hol1": 8,
+    "hol2": 0,
+    "infl": 2.5,
+    "projIRR": 10,
+    "eqIRR": 13.5,
+    "fuelCost": 121,
+    "heatRate": 15295,
+    "premium": 0,
+    "premYrs": 0,
+    "opexPct": 6,
+    "refTotal": 3.66,
+    "refFiTx": 1.81,
+    "refFiTv": 1.85,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 10,
+    "refEqIRR": 13.5,
+    "targetProjIRR": 10,
+    "targetEqIRR": 13.5,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 40,
+    "group": "Industrial Waste",
+    "name": "ปี 2558 | ต่อยอด",
+    "cap_kw": 10000,
+    "capex": 75,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 15.3,
+    "eqIRR": 21.9,
+    "fuelCost": 176,
+    "heatRate": 15295,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 5.08,
+    "refFiTx": 2.39,
+    "refFiTv": 2.69,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 15.3,
+    "refEqIRR": 21.9,
+    "targetProjIRR": 10.0,
+    "targetEqIRR": 11.7,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 41,
+    "group": "Industrial Waste",
+    "name": "ปี 2558 | ใหม่",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 15.5,
+    "eqIRR": 22,
+    "fuelCost": 176,
+    "heatRate": 15295,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 6.08,
+    "refFiTx": 3.39,
+    "refFiTv": 2.69,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 15.5,
+    "refEqIRR": 22,
+    "targetProjIRR": 11.6,
+    "targetEqIRR": 14.3,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 42,
+    "group": "Industrial Waste",
+    "name": "ปี 2558 | ใหม่+พลาสม่า",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 22.7,
+    "eqIRR": 37,
+    "fuelCost": 176,
+    "heatRate": 15295,
+    "premium": 1.7,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 6.08,
+    "refFiTx": 3.39,
+    "refFiTv": 2.69,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 22.7,
+    "refEqIRR": 37,
+    "targetProjIRR": 11.6,
+    "targetEqIRR": 14.3,
+    "other_growth": 0,
+    "noFiTv": false
+  },
+  {
+    "id": 43,
+    "group": "Industrial Waste",
+    "name": "ปี 2565 | RE Biglot",
+    "cap_kw": 10000,
+    "capex": 100,
+    "pf": 70,
+    "deg": 0,
+    "life": 20,
+    "debt": 60,
+    "interest": 7,
+    "term": 8,
+    "tax": 30,
+    "hol1": 8,
+    "hol2": 5,
+    "infl": 2.5,
+    "projIRR": 15.5,
+    "eqIRR": 22,
+    "fuelCost": 176,
+    "heatRate": 15295,
+    "premium": 0.7,
+    "premYrs": 8,
+    "opexPct": 6,
+    "refTotal": 6.08,
+    "refFiTx": 3.39,
+    "refFiTv": 2.69,
+    "splitProvided": true,
+    "fitvOverride": null,
+    "fuelUnit": "THB/GJ",
+    "sourceDetailed": true,
+    "refProjIRR": 15.5,
+    "refEqIRR": 22,
+    "targetProjIRR": 11.6,
+    "targetEqIRR": 14.3,
+    "other_growth": 0,
+    "noFiTv": false
+  }
+];
+let current = null;
+let templatePristine = true;
+let calcMode = 'FIND_FITX';
+let overrideFiT = null;
+let resultsDirty = true;
+let savedCases = JSON.parse(localStorage.getItem('fitCalculatorCasesV3') || '[]');
+let fixedState = {}; // { key: capturedValue } — explicit constraints used by the calculation engine
+let lastResult = null;
+let calculatedSnapshot = {}; // values from the latest successful Calculate
+let hasCalculationSnapshot = false;
+let pendingFixedSelections = new Set(); // checked in Fixed Variables but waiting for a value (mainly Blank template)
+let premiumBaseFiTxOverride = null; // temporary base FiT-X used only by Calculate Premium; prevents re-solving base tariff when Premium target/period changes
+let premiumCalculationMode = false; // true only while the dedicated Calculate Premium button is running
+let premiumBaseFiTxAnchor = null; // Base FiT-X established by the latest MAIN calculation / template reference
+let premiumBaseSignatureAnchor = '';
+let premiumSolved = false; // Premium is shown as a solved value only after Calculate Premium or a template reference premium
+
+function normalizeLegacyFixedState(){
+  // Compatibility safeguard if an older in-memory state is reused while developing/upgrading.
+  const legacyMap={targetProjIRR:'projIRR',targetProjPayback:'projPayback',targetEqIRR:'eqIRR',targetEqPayback:'eqPayback'};
+  for(const [oldKey,newKey] of Object.entries(legacyMap)){
+    if(Object.prototype.hasOwnProperty.call(fixedState,oldKey) && !Object.prototype.hasOwnProperty.call(fixedState,newKey)) fixedState[newKey]=fixedState[oldKey];
+    delete fixedState[oldKey];
+  }
+}
+
+/*
+  Fixed-variable design:
+  - Goal Seek selectors are NOT mathematical variables and are therefore not fixable.
+  - Direct inputs can be fixed immediately.
+  - Derived/calculated quantities are grey and unavailable until at least one successful Calculate.
+  - After calculation, a derived value may be captured as a fixed constraint for the next scenario.
+  - Input and calculated variables are presented in one model-aware list; unavailable variables remain grey.
+  - Multiple calculated result constraints are permitted only when the final cash flow can satisfy all of them simultaneously.
+*/
+const COMMON_INPUT_FIXES = [
+  {key:'cap_kw',label:'Installed Capacity (kW)',inputId:'inp-cap_kw'},
+  {key:'pf',label:'Plant Factor (%)',inputId:'inp-pf'},
+  {key:'capex',label:'CAPEX (THB/W)',inputId:'inp-capex'},
+  {key:'opexPct',label:'O&M (% of CAPEX/yr)',inputId:'inp-opexPct'},
+  {key:'life',label:'Project Life (yr)',inputId:'inp-life'},
+  {key:'deg',label:'Degradation (%)',inputId:'inp-deg'},
+  {key:'fuelCost',label:'Fuel Cost',inputId:'inp-fuelCost'},
+  {key:'fuelUnit',label:'Fuel Cost Unit',inputId:'inp-fuelUnit'},
+  {key:'heatRate',label:'Net Heat Rate (kJ/kWh)',inputId:'inp-heatRate'},
+  {key:'fitvOverride',label:'FiT-V Override (THB/kWh)',inputId:'inp-fitvOverride'},
+  {key:'other_cost',label:'Other Cost (MTHB/yr)',inputId:'inp-other_cost'},
+  {key:'other_growth',label:'Other Cost Growth (%)',inputId:'inp-other_growth'},
+  {key:'reinvest',label:'Reinvestment @ Year 11 (MTHB)',inputId:'inp-reinvest'},
+  {key:'import_waste',label:'Waste (ton/yr)',inputId:'inp-import_waste'},
+  {key:'tipping_fee',label:'Tipping Fee (THB/ton)',inputId:'inp-tipping_fee'},
+  {key:'tipping_growth',label:'Tipping Fee Growth (%)',inputId:'inp-tipping_growth'},
+  {key:'debt',label:'Debt (%)',inputId:'inp-debt'},
+  {key:'interest',label:'Interest Rate (%)',inputId:'inp-interest'},
+  {key:'term',label:'Debt Term (yr)',inputId:'inp-term'},
+  {key:'tax',label:'Income Tax (%)',inputId:'inp-tax'},
+  {key:'hol1',label:'Tax Holiday (yr)',inputId:'inp-hol1'},
+  {key:'infl',label:'Inflation (%)',inputId:'inp-infl'},
+  {key:'discount_rate',label:'Discount Rate (%)',inputId:'inp-discount_rate'},
+  {key:'premYrs',label:'Premium Period (yr)',inputId:'inp-premYrs'}
+];
+
+// Canonical economic-performance variables for Fixed Variables.
+// Target Project IRR and calculated Project IRR are the same economic metric at different stages,
+// so the Fixed Variables panel shows only ONE item per metric. Before the first calculation the
+// active Goal Seek target can be captured; after calculation the latest calculated result is captured.
+const PERFORMANCE_FIXES = [
+  {key:'projIRR',label:'Project IRR (%)',derived:true,resultMetric:true,metric:'PROJECT_IRR',targetKey:'targetProjIRR',targetInputId:'inp-targetProjIRR'},
+  {key:'projPayback',label:'Project Payback (yr)',derived:true,resultMetric:true,metric:'PROJECT_PAYBACK',targetKey:'targetProjPayback',targetInputId:'inp-targetProjPayback'},
+  {key:'eqIRR',label:'Equity IRR (%)',derived:true,resultMetric:true,metric:'EQUITY_IRR',targetKey:'targetEqIRR',targetInputId:'inp-targetEqIRR'},
+  {key:'eqPayback',label:'Equity Payback (yr)',derived:true,resultMetric:true,metric:'EQUITY_PAYBACK',targetKey:'targetEqPayback',targetInputId:'inp-targetEqPayback'}
+];
+const PERFORMANCE_BY_KEY = Object.fromEntries(PERFORMANCE_FIXES.map(d=>[d.key,d]));
+const PERFORMANCE_BY_METRIC = Object.fromEntries(PERFORMANCE_FIXES.map(d=>[d.metric,d]));
+
+const DERIVED_COMMON_FIXES = [
+  // Only calculated values that can act as genuine independent constraints are exposed here.
+  // Investment Cost total, O&M total, Debt/Equity and Electricity Exported are algebraic outputs
+  // of the input assumptions and are intentionally not offered as Fixed Variables.
+  {key:'fitv',label:'FiT-V (THB/kWh)',derived:true},
+  {key:'premium',label:'FiT Premium (THB/kWh)',derived:true}
+];
+
+const TARGET_INPUT_DEFS = PERFORMANCE_FIXES.map(d=>({key:d.targetKey,label:d.label,inputId:d.targetInputId,performanceKey:d.key}));
+const ALL_CURRENT_INPUT_FIXES = [
+  ...COMMON_INPUT_FIXES,
+  ...TARGET_INPUT_DEFS
+];
+
+function getFixableVariableDefs(){
+  const wasteRelevant=current && (current.isBlank || current.group==='MSW' || current.group==='Industrial Waste');
+  const fuelRelevant=current && (!current.noFiTv || current.isBlank);
+  const fitvOverrideActive=current && (current.fuelUnit==='THB/ton' || (current.fitvOverride!==null && current.fitvOverride!==undefined && current.fitvOverride!==''));
+
+  const defs=COMMON_INPUT_FIXES.filter(def=>{
+    if(['import_waste','tipping_fee','tipping_growth'].includes(def.key)) return wasteRelevant;
+    if(['fuelCost','fuelUnit','heatRate','fitvOverride'].includes(def.key)){
+      // Always show the fuel-related choices so the user can immediately see whether they are
+      // active or unavailable for the selected technology. fixedCompatibilityReason() turns
+      // variables that are outside the active equation grey instead of silently hiding them.
+      return true;
+    }
+    return true;
+  });
+
+  if(calcMode==='FIND_IRR'){
+    defs.push({key:'totalFiT',label:'Total FiT (THB/kWh)',inputId:'input-overrideFiT',source:'override'});
+  }
+
+  const derived=DERIVED_COMMON_FIXES.filter(def=>{
+    if(def.key==='fitv'){
+      if(current && current.noFiTv) return false;
+      if(fitvOverrideActive) return false; // avoid FiT-V Override + FiT-V duplicate in Fixed Variables
+    }
+    return true;
+  });
+
+  if(calcMode==='FIND_FITX'){
+    derived.push(
+      {key:'fitx',label:'FiT-X (THB/kWh)',derived:true},
+      {key:'totalFiT',label:'Total FiT (THB/kWh)',derived:true}
+    );
+  }
+
+  // Show each economic performance metric only once. Availability is state-aware:
+  // before calculation, only the active Goal Seek/Premium target can be fixed; after calculation,
+  // the latest calculated metric can be fixed as a genuine cash-flow constraint.
+  const performance=PERFORMANCE_FIXES.filter(def=>performanceFixValueAvailable(def));
+  return [...defs,...derived,...performance];
+}
+
+function findFixDefinition(key){
+  return getFixableVariableDefs().find(x=>x.key===key)
+    || ALL_CURRENT_INPUT_FIXES.find(x=>x.key===key)
+    || DERIVED_COMMON_FIXES.find(x=>x.key===key)
+    || PERFORMANCE_BY_KEY[key]
+    || (key==='fitx'?{key:'fitx',label:'FiT-X (THB/kWh)',derived:true}:null)
+    || (key==='totalFiT'?{key:'totalFiT',label:'Total FiT (THB/kWh)',derived:calcMode==='FIND_FITX',source:calcMode==='FIND_IRR'?'override':undefined}:null);
+}
+
+function performanceTargetIsActive(def){
+  if(!current || calcMode!=='FIND_FITX') return false;
+  if((current.goalSeekMetric||'PROJECT_IRR')===def.metric) return true;
+  if(Number(current.premYrs)>0){
+    const premiumMetric=(current.premiumGoalSeekMetric||'PROJECT_IRR');
+    if(premiumMetric===def.metric) return true;
+  }
+  return false;
+}
+
+function performanceTargetValue(def){
+  if(!current || !def || !def.targetKey) return null;
+  const v=current[def.targetKey];
+  return (v===null||v===undefined||v===''||!Number.isFinite(Number(v))) ? null : Number(v);
+}
+
+function performanceFixValueAvailable(def){
+  if(!def || !def.resultMetric) return false;
+  if(hasCalculationSnapshot && Object.prototype.hasOwnProperty.call(calculatedSnapshot,def.key)){
+    const v=calculatedSnapshot[def.key];
+    if(v!==null&&v!==undefined&&Number.isFinite(Number(v))) return true;
+  }
+  return performanceTargetIsActive(def) && performanceTargetValue(def)!==null;
+}
+
+function performanceValueForFix(def){
+  if(hasCalculationSnapshot && Object.prototype.hasOwnProperty.call(calculatedSnapshot,def.key)){
+    const v=calculatedSnapshot[def.key];
+    if(v!==null&&v!==undefined&&Number.isFinite(Number(v))) return Number(v);
+  }
+  if(performanceTargetIsActive(def)) return performanceTargetValue(def);
+  return null;
+}
+
+const RESULT_FIX_KEYS=['projIRR','projPayback','eqIRR','eqPayback'];
+const DERIVED_SOURCE_LOCKS={
+  fitv:['fuelCost','fuelUnit','heatRate','fitvOverride']
+};
+
+function stateHas(state,key){return Object.prototype.hasOwnProperty.call(state,key);}
+function anyFixedIn(state,keys){return keys.some(k=>stateHas(state,k));}
+
+function inputConstraintLockReason(key,state=fixedState){
+  for(const [derived,sources] of Object.entries(DERIVED_SOURCE_LOCKS)){
+    if(stateHas(state,derived) && sources.includes(key)){
+      const d=findFixDefinition(derived);
+      return `${d?d.label:derived} ถูก Fix จึงต้องคงตัวแปรต้นทางของสมการนี้ไว้`;
+    }
+  }
+  if(key==='totalFiT' && calcMode==='FIND_IRR' && anyFixedIn(state,RESULT_FIX_KEYS)){
+    return 'มีการ Fix ผลตอบแทน/Payback แล้ว Total FiT จะเป็นค่าที่ระบบย้อนคำนวณเพื่อรักษาค่าที่ Fix';
+  }
+  return null;
+}
+
+function fixedCompatibilityReason(def,state=fixedState){
+  if(!def) return 'ไม่พบตัวแปร';
+  const key=def.key;
+  if(stateHas(state,key)) return null;
+  const sourceLock=inputConstraintLockReason(key,state);
+  if(sourceLock) return sourceLock;
+
+  if(RESULT_FIX_KEYS.includes(key)){
+    const other=RESULT_FIX_KEYS.find(k=>k!==key && stateHas(state,k));
+    if(other){
+      const od=findFixDefinition(other);
+      return `เลือกได้ครั้งละ 1 ตัวแปรผลตอบแทน/Payback เนื่องจาก FiT-X เป็นตัวแปรปรับหลักเพียงค่าเดียว (ขณะนี้ Fix ${od?od.label:other})`;
+    }
+    if(stateHas(state,'fitx')||stateHas(state,'totalFiT')){
+      return 'FiT-X/Total FiT ถูก Fix แล้ว จึงไม่สามารถ Fix ผลตอบแทนหรือ Payback เพิ่มเป็น Constraint ซ้ำได้';
+    }
+  }
+
+  if(key==='fitx' || key==='totalFiT'){
+    const other=key==='fitx'?'totalFiT':'fitx';
+    if(stateHas(state,other)) return 'FiT-X และ Total FiT เชื่อมกันด้วย Total FiT = FiT-X + FiT-V จึง Fix ซ้ำพร้อมกันไม่ได้';
+    if(anyFixedIn(state,RESULT_FIX_KEYS)) return 'มีการ Fix ผลตอบแทน/Payback แล้ว Tariff ต้องเป็นตัวแปรที่ระบบใช้ย้อนหาเพื่อรักษาค่าดังกล่าว';
+  }
+
+  // Fuel Cost / Fuel Unit / Net Heat Rate are true independent variables only when the active
+  // FiT-V equation uses them. If FiT-V Override is active, those fields no longer drive FiT-V.
+  if(['fuelCost','fuelUnit','heatRate','fitvOverride'].includes(key)){
+    if(current && current.noFiTv && !current.isBlank) return 'เทคโนโลยีนี้ไม่มี FiT-V จึงไม่ใช้ตัวแปร Fuel / FiT-V ในสมการของกรณีนี้';
+    if(key!=='fuelUnit'){
+      const overrideActive=current && current.fitvOverride!==null && current.fitvOverride!==undefined && current.fitvOverride!=='';
+      if(['fuelCost','heatRate'].includes(key) && current && current.fuelUnit==='THB/ton') return 'Fuel Cost หน่วย THB/ton ไม่ได้คำนวณ FiT-V จาก Net Heat Rate โดยตรง ต้องใช้ FiT-V Override';
+      if(['fuelCost','heatRate'].includes(key) && (overrideActive || stateHas(state,'fitvOverride'))) return 'FiT-V Override เป็นตัวกำหนด FiT-V โดยตรง จึงไม่ใช้ Fuel Cost / Net Heat Rate ในสมการ FiT-V รอบนี้';
+      if(key==='fitvOverride' && current && current.fuelUnit==='THB/GJ' && (stateHas(state,'fuelCost') || stateHas(state,'heatRate'))) return 'Fuel Cost และ Net Heat Rate ถูกเลือกเป็นตัวกำหนด FiT-V แล้ว หากต้องการใช้ FiT-V Override ให้ปลด Fix ตัวแปร Fuel ที่เกี่ยวข้องก่อน';
+    }
+  }
+
+  // A calculated identity is redundant when every independent input that determines it is already Fixed.
+  if(key==='investmentCost' && stateHas(state,'cap_kw') && stateHas(state,'capex')) return 'Installed Capacity และ CAPEX ถูก Fix แล้ว Investment Cost ถูกกำหนดโดยสมการอัตโนมัติ';
+  if(key==='energyYr1' && stateHas(state,'cap_kw') && stateHas(state,'pf')) return 'Installed Capacity และ Plant Factor ถูก Fix แล้ว Electricity Exported ถูกกำหนดโดยสมการอัตโนมัติ';
+  if(key==='opexMthb' && stateHas(state,'opexPct') && (stateHas(state,'investmentCost') || (stateHas(state,'cap_kw')&&stateHas(state,'capex')))) return 'Investment Cost และ O&M (%) ถูก Fix แล้ว O&M (MTHB) ถูกกำหนดโดยสมการอัตโนมัติ';
+  if(key==='debtMthb' && stateHas(state,'debt') && (stateHas(state,'investmentCost') || (stateHas(state,'cap_kw')&&stateHas(state,'capex')))) return 'Investment Cost และ Debt (%) ถูก Fix แล้ว Debt (MTHB) ถูกกำหนดโดยสมการอัตโนมัติ';
+  if(key==='equityMthb' && stateHas(state,'debt') && (stateHas(state,'investmentCost') || (stateHas(state,'cap_kw')&&stateHas(state,'capex')))) return 'Investment Cost และ Debt (%) ถูก Fix แล้ว Equity (MTHB) ถูกกำหนดโดยสมการอัตโนมัติ';
+  if(key==='fitv'){
+    if(current && current.noFiTv) return 'เทคโนโลยีนี้ไม่มี FiT-V';
+    if(stateHas(state,'fitvOverride')) return 'FiT-V Override ถูก Fix แล้ว FiT-V ถูกกำหนดโดยตรง';
+    if(stateHas(state,'fuelCost') && stateHas(state,'heatRate') && stateHas(state,'fuelUnit')) return 'Fuel Cost, Fuel Unit และ Heat Rate ถูก Fix แล้ว FiT-V ถูกกำหนดโดยสมการอัตโนมัติ';
+  }
+  return null;
+}
+
+function preserveConstraintLockedInputs(previous,next){
+  if(!previous||!next) return;
+  for(const def of ALL_CURRENT_INPUT_FIXES){
+    if(!def.inputId) continue;
+    if(inputConstraintLockReason(def.key) && previous[def.key]!==undefined){
+      next[def.key]=previous[def.key];
+    }
+  }
+}
+
+const hasNumericValue = v => v!==null && v!==undefined && String(v).trim()!=='' && Number.isFinite(Number(v));
+const n = (v,d=0) => Number.isFinite(Number(v)) ? Number(v) : d;
+const fmt = (v,dec=4) => (v===null || v===undefined || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(dec);
+const money = v => Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+function setV(id,v){const e=document.getElementById(id); if(e) e.value=(v===null||v===undefined)?'':v;}
+function showError(msg){const e=document.getElementById('errorMsg');e.textContent=msg;e.classList.remove('hidden')}
+function clearError(){document.getElementById('errorMsg').classList.add('hidden')}
+
+function isFixed(key){ return Object.prototype.hasOwnProperty.call(fixedState,key); }
+function isSelectedForFix(key){ return isFixed(key) || pendingFixedSelections.has(key); }
+function fixedValue(key,fallback=null){ return isFixed(key) ? fixedState[key] : fallback; }
+function selectedConstraintState(){
+  const state={...fixedState};
+  for(const key of pendingFixedSelections){ if(!Object.prototype.hasOwnProperty.call(state,key)) state[key]='__PENDING__'; }
+  return state;
+}
+function clearPendingSelection(key){ pendingFixedSelections.delete(key); }
+
+function baseModelSignature(){
+  if(!current) return '';
+  // Variables that change the underlying base-project cash flow / FiT-X economics.
+  // Premium Period, Premium target/metric and the four Goal-Seek target values are deliberately
+  // excluded: changing those must NOT invalidate the already-established base FiT-X.
+  const keys=[
+    'group','noFiTv','cap_kw','pf','capex','opexPct','life','deg',
+    'fuelCost','fuelUnit','heatRate','fitvOverride','other_cost','other_growth','reinvest',
+    'import_waste','tipping_fee','tipping_growth','debt','interest','term','tax','hol1','hol2',
+    'infl','discount_rate'
+  ];
+  const obj={};
+  for(const k of keys) obj[k]=(current[k]===undefined?null:current[k]);
+  return JSON.stringify(obj);
+}
+
+function captureCalculatedSnapshot(r){
+  const sig=baseModelSignature();
+  calculatedSnapshot={
+    _baseSignature:sig,
+    investmentCost:capexMTHB(),
+    opexMthb:opexMTHB(),
+    energyYr1:energyBase(),
+    debtMthb:r.debt,
+    equityMthb:r.equity,
+    fitv:r.fitv,
+    fitx:r.fitx,
+    totalFiT:r.totalFiT,
+    premium:r.premium,
+    projIRR:r.projIRR,
+    projPayback:r.projPayback,
+    eqIRR:r.eqIRR,
+    eqPayback:r.eqPayback
+  };
+  hasCalculationSnapshot=true;
+  // Excel premium workflow is sequential: Main Calculate establishes Base FiT-X;
+  // Calculate Premium must hold that tariff unchanged and Goal-Seek only Premium.
+  if(!premiumCalculationMode && hasNumericValue(r.fitx)){
+    premiumBaseFiTxAnchor=Number(r.fitx);
+    premiumBaseSignatureAnchor=sig;
+  }
+}
+
+function capexMTHBBase(){ return n(current.cap_kw) * n(current.capex) / 1000; }
+function capexMTHB(){ return capexMTHBBase(); }
+function opexMTHBBase(){ return capexMTHB() * n(current.opexPct) / 100; }
+function opexMTHB(){ return opexMTHBBase(); }
+// Electricity Exported Yr.1 (MWh) = Installed Capacity (kW) × Plant Factor (%) × 8.76
+function energyBaseRaw(){ return n(current.cap_kw) * (n(current.pf) / 100) * 8.76; }
+function energyBase(){ return energyBaseRaw(); }
+function energyYr1(){ return energyBase(); }
+function financingAmounts(){
+  const capex=capexMTHB();
+  const debt=capex*n(current.debt)/100;
+  const equity=capex-debt;
+  return {capex,debt,equity};
+}
+// Blank template always shows waste-specific inputs, but uses the waste cash-flow model only when waste revenue inputs are actually used.
+function isWasteModel(){
+  if(!current) return false;
+  if(current.group==='MSW' || current.group==='Industrial Waste') return true;
+  if(current.isBlank){
+    return n(current.import_waste)>0 || n(current.tipping_fee)>0 || Math.abs(n(current.tipping_growth))>0;
+  }
+  return false;
+}
+function hasFiTv(){ return !current.noFiTv; }
+
+function computeFiTVBase(){
+  if(current.noFiTv) return 0;
+  if(current.fitvOverride !== null && current.fitvOverride !== '' && Number.isFinite(Number(current.fitvOverride))) return Number(current.fitvOverride);
+  if(current.fuelUnit === 'THB/GJ') return n(current.fuelCost) * n(current.heatRate) / 1_000_000;
+  if(current.fuelUnit === '-' || n(current.fuelCost)===0) return 0;
+  return null;
+}
+function computeFiTV(){
+  // Technologies explicitly defined as having no FiT-V always use FiT-V = 0.
+  // A FiT-V fixed in another template is ignored here to preserve the tariff identity of the current technology.
+  if(current.noFiTv) return 0;
+  if(isFixed('fitv')) return n(fixedState.fitv);
+  return computeFiTVBase();
+}
+
+/* Excel PMT convention translated to positive annual debt service. */
+function annualDebtService(rate,nper,pv){
+  if(pv<=0 || nper<=0) return 0;
+  if(Math.abs(rate)<1e-14) return pv/nper;
+  return pv*rate/(1-Math.pow(1+rate,-nper));
+}
+function npv0(cfs,rate){ return cfs.reduce((s,cf,i)=>s+cf/Math.pow(1+rate,i),0); }
+
+/* Excel IRR rows use IRR(...,0.15). Newton iteration with 15% guess, with bisection fallback. */
+function calcIRRExcel(cfs,guess=0.15){
+  if(!cfs.some(x=>x>0)||!cfs.some(x=>x<0)) return null;
+  let r=guess;
+  for(let k=0;k<100;k++){
+    if(r<=-0.999999999) r=-0.999999;
+    let f=0,df=0;
+    for(let t=0;t<cfs.length;t++){
+      const den=Math.pow(1+r,t);
+      f+=cfs[t]/den;
+      if(t>0) df-=t*cfs[t]/Math.pow(1+r,t+1);
+    }
+    if(!Number.isFinite(f)||!Number.isFinite(df)||Math.abs(df)<1e-14) break;
+    const nr=r-f/df;
+    if(!Number.isFinite(nr)||nr<=-0.999999999||Math.abs(nr-r)>10) break;
+    if(Math.abs(nr-r)<1e-12) return nr;
+    r=nr;
+  }
+  // fallback for normal single-root project cash flows
+  const f=x=>npv0(cfs,x);
+  let lo=-0.9999,hi=1,flo=f(lo),fhi=f(hi),guard=0;
+  while(Number.isFinite(flo)&&Number.isFinite(fhi)&&flo*fhi>0&&hi<1024&&guard++<30){hi=hi*2+0.5;fhi=f(hi);}
+  if(!Number.isFinite(flo)||!Number.isFinite(fhi)||flo*fhi>0) return null;
+  for(let i=0;i<180;i++){
+    const mid=(lo+hi)/2,fm=f(mid);
+    if(Math.abs(fm)<1e-12) return mid;
+    if(flo*fm<=0){hi=mid;fhi=fm;}else{lo=mid;flo=fm;}
+  }
+  return (lo+hi)/2;
+}
+
+/* Excel payback rows: first-year crossing returns Year 1; subsequent years interpolate. */
+function excelPayback(cfs){
+  if(cfs.length<2) return null;
+  let prev=cfs[0], cur=prev+cfs[1];
+  if(prev<0 && cur>0) return 1;
+  for(let y=2;y<cfs.length;y++){
+    prev=cur; cur+=cfs[y];
+    if(prev<0 && cur>0) return (y-1) - prev/(cur-prev);
+  }
+  return null;
+}
+
+/*
+  Cash-flow engine mirrors the uploaded Excel:
+  - displayed Electricity Exported Yr.1 = Installed Capacity (kW) × Plant Factor (%) × 8.76
+  - the Excel cash-flow row applies degradation from operating year 1: base energy × (1+degradation)^year
+  - reinvestment occurs in year 11
+  - non-waste O&M escalates from year 1; waste-model O&M starts un-escalated in year 1
+  - waste tipping fee steps up every 3 years
+  - tax base follows the Excel cumulative-investment / project-life formula
+  - Debt service follows PMT; Project and Equity cash flows follow the same row structure
+  - FiT-V is outside the investment-tariff financial model; FiTx is the tariff used in cash flow
+*/
+function generateExcelCF(fitx,{includePremium=true,premiumOverride=null}={}){
+  const life=Math.max(1,Math.round(n(current.life)));
+  const finance=financingAmounts();
+  const capex=finance.capex, opex0=opexMTHB(), e0=energyBase();
+  const waste=isWasteModel();
+  const premiumAmount = premiumOverride===null ? n(current.premium) : n(premiumOverride);
+  const investment=Array(life+1).fill(0);
+  investment[0]=-capex;
+  if(life>=11) investment[11]=-Math.max(0,current.reinvest);
+
+  const annualCost=Array(life+1).fill(0);
+  const annualBenefit=Array(life+1).fill(0);
+  const energy=Array(life+1).fill(0);
+
+  for(let y=1;y<=life;y++){
+    const opexExponent = waste ? (y-1) : y;
+    const opex = -opex0*Math.pow(1+current.infl/100,opexExponent);
+    const other = -current.other_cost*Math.pow(1+current.other_growth/100,y);
+    annualCost[y]=opex+other;
+
+    // Match Excel row C29 onward: operating-year generation includes degradation from year 1.
+    energy[y]=e0*Math.pow(1+current.deg/100,y);
+    const premium=(includePremium && y<=n(current.premYrs))?premiumAmount:0;
+    let benefit=energy[y]*(fitx+premium)/1000;
+
+    if(waste){
+      const block=Math.floor((y-1)/3);
+      const tipping=current.tipping_fee*Math.pow(1+current.tipping_growth/100,block);
+      benefit += current.import_waste*tipping/1_000_000;
+    }
+    annualBenefit[y]=benefit;
+  }
+
+  const debt0=finance.debt;
+  const debtService=Array(life+1).fill(0);
+  const interestPay=Array(life+1).fill(0);
+  const principalPay=Array(life+1).fill(0);
+  const loanBalance=Array(life+1).fill(0);
+  loanBalance[0]=-debt0;
+  const rate=current.interest/100;
+  const pmt=annualDebtService(rate,current.term,debt0);
+  for(let y=1;y<=life;y++){
+    if(y<=current.term){
+      debtService[y]=-pmt;
+      interestPay[y]=loanBalance[y-1]*rate;
+      principalPay[y]=debtService[y]-interestPay[y];
+      loanBalance[y]=loanBalance[y-1]-principalPay[y];
+    }else{
+      loanBalance[y]=loanBalance[y-1];
+    }
+  }
+
+  const projectTax=Array(life+1).fill(0);
+  const equityTax=Array(life+1).fill(0);
+  let cumulativeInvestment=investment[0];
+  for(let y=1;y<=life;y++){
+    cumulativeInvestment += investment[y];
+    const taxRate = y>current.hol1 ? current.tax/100 : 0;
+    const depreciationTerm = cumulativeInvestment/life; // negative, exactly as SUM(investment)/life in Excel
+
+    const preTaxProject = annualCost[y]+annualBenefit[y]+investment[y];
+    if(preTaxProject < -cumulativeInvestment/life){
+      projectTax[y]=0;
+    }else{
+      projectTax[y]=-(preTaxProject+depreciationTerm)*taxRate;
+    }
+
+    const preTaxEquity = annualCost[y]+annualBenefit[y]+interestPay[y]+investment[y];
+    if(preTaxEquity < -cumulativeInvestment/life){
+      equityTax[y]=0;
+    }else{
+      equityTax[y]=-(preTaxEquity+depreciationTerm)*taxRate;
+    }
+  }
+
+  const projCF=Array(life+1).fill(0),eqCF=Array(life+1).fill(0);
+  projCF[0]=investment[0];
+  eqCF[0]=-finance.equity;
+  for(let y=1;y<=life;y++){
+    projCF[y]=investment[y]+annualCost[y]+annualBenefit[y]+projectTax[y];
+    eqCF[y]=investment[y]+annualCost[y]+annualBenefit[y]+equityTax[y]+debtService[y];
+  }
+
+  // Excel LCOE formula (cell B31): -(B24 + NPV(Discount Rate, Annual Cost)) / NPV(Discount Rate, Electricity Exported) × 1,000
+  // This is the discounted lifetime cost per discounted lifetime electricity, excluding financing and tax.
+  const dr=n(current.discount_rate)/100;
+  let pvAnnualCost=0, pvEnergy=0;
+  for(let y=1;y<=life;y++){
+    pvAnnualCost += annualCost[y]/Math.pow(1+dr,y);
+    pvEnergy += energy[y]/Math.pow(1+dr,y);
+  }
+  const lcoe = pvEnergy>0 ? -(investment[0]+pvAnnualCost)/pvEnergy*1000 : null;
+
+  // Displayed Electricity Exported Yr.1 remains the undegraded base value, exactly as the Excel assumption block.
+  return {projCF,eqCF,lcoe,debt:debt0,equity:finance.equity,energyYr1:e0};
+}
+
+/*
+  Goal Seek for FiT-X. Only one target metric is active per calculation because FiT-X is one unknown.
+  Premium is excluded from the base Goal Seek, consistent with the Excel investment-tariff model.
+*/
+function solveFiTxByIRR(targetPct,cashFlowKey,{includePremium=false,premiumOverride=0}={}){
+  if(targetPct===null||targetPct===''||!Number.isFinite(Number(targetPct))) return null;
+  const target=Number(targetPct)/100;
+  if(target<=-0.999999999) return null;
+  const f=x=>npv0(generateExcelCF(x,{includePremium,premiumOverride})[cashFlowKey],target);
+  let lo=0,flo=f(lo);
+  if(!Number.isFinite(flo)) return null;
+  if(flo>=0) return 0;
+  let hi=2,fhi=f(hi),guard=0;
+  while(Number.isFinite(fhi)&&fhi<0&&hi<200&&guard++<40){hi*=2;fhi=f(hi);}
+  if(!Number.isFinite(fhi)||fhi<0) return null;
+  for(let i=0;i<160;i++){
+    const mid=(lo+hi)/2,fm=f(mid);
+    if(!Number.isFinite(fm)) return null;
+    if(Math.abs(fm)<1e-11) return mid;
+    if(fm>=0) hi=mid; else lo=mid;
+  }
+  return (lo+hi)/2;
+}
+
+function solveFiTxByPayback(targetYears,cashFlowKey,{includePremium=false,premiumOverride=0}={}){
+  if(targetYears===null||targetYears===''||!Number.isFinite(Number(targetYears))) return null;
+  const target=Number(targetYears);
+  if(target<1 || !Number.isFinite(current.life) || target>Number(current.life)) return null;
+  const paybackAt=x=>excelPayback(generateExcelCF(x,{includePremium,premiumOverride})[cashFlowKey]);
+  const effectivePayback=x=>{
+    const p=paybackAt(x);
+    return p===null ? Number.POSITIVE_INFINITY : p;
+  };
+
+  let lo=0,plo=effectivePayback(lo);
+  if(plo<=target) return 0;
+
+  let hi=2,phi=effectivePayback(hi),guard=0;
+  while(phi>target&&hi<200&&guard++<40){hi*=2;phi=effectivePayback(hi);}
+  if(phi>target) return null;
+
+  // Payback decreases as FiT-X increases. Find the minimum tariff that achieves the target payback.
+  for(let i=0;i<160;i++){
+    const mid=(lo+hi)/2,pm=effectivePayback(mid);
+    if(pm>target) lo=mid; else hi=mid;
+  }
+  return hi + Math.max(1e-10,Math.abs(hi)*1e-12);
+}
+
+function goalSeekTargetInfo(){
+  const metric=current.goalSeekMetric||'PROJECT_IRR';
+  if(metric==='PROJECT_PAYBACK') return {metric,label:'Project Payback',value:current.targetProjPayback,unit:'yr',type:'payback',cashFlowKey:'projCF'};
+  if(metric==='EQUITY_IRR') return {metric,label:'Equity IRR',value:current.targetEqIRR,unit:'%',type:'irr',cashFlowKey:'eqCF'};
+  if(metric==='EQUITY_PAYBACK') return {metric,label:'Equity Payback',value:current.targetEqPayback,unit:'yr',type:'payback',cashFlowKey:'eqCF'};
+  return {metric:'PROJECT_IRR',label:'Project IRR',value:current.targetProjIRR,unit:'%',type:'irr',cashFlowKey:'projCF'};
+}
+
+function solveFiTxBySelectedTarget(){
+  const t=goalSeekTargetInfo();
+  if(t.type==='irr') return solveFiTxByIRR(t.value,t.cashFlowKey);
+  return solveFiTxByPayback(t.value,t.cashFlowKey);
+}
+
+const FIXED_RESULT_CONSTRAINTS = {
+  projIRR:{key:'projIRR',label:'Project IRR',unit:'%',type:'irr',cashFlowKey:'projCF'},
+  projPayback:{key:'projPayback',label:'Project Payback',unit:'yr',type:'payback',cashFlowKey:'projCF'},
+  eqIRR:{key:'eqIRR',label:'Equity IRR',unit:'%',type:'irr',cashFlowKey:'eqCF'},
+  eqPayback:{key:'eqPayback',label:'Equity Payback',unit:'yr',type:'payback',cashFlowKey:'eqCF'}
+};
+
+function fixedResultConstraintInfo(){
+  const active=Object.values(FIXED_RESULT_CONSTRAINTS)
+    .filter(d=>isFixed(d.key))
+    .map(d=>({...d,value:n(fixedState[d.key])}));
+  if(!active.length) return null;
+
+  /*
+    More than one calculated return/payback may be fixed after a completed calculation.
+    There is still only one tariff degree of freedom (FiT-X), so the first fixed metric is
+    used as the primary solving constraint when tariff itself is not fixed.  All remaining
+    fixed metrics are then verified against the final cash flow.  If they cannot all be
+    satisfied simultaneously, the model reports an over-constrained system instead of
+    silently changing a fixed value.
+  */
+  const primary=active[0];
+  return {...primary,all:active};
+}
+
+function solveFiTxByConstraintInfo(info,premiumAmount=0){
+  if(!info || info.error) return null;
+  const opts={includePremium:Math.abs(n(premiumAmount))>1e-15,premiumOverride:n(premiumAmount)};
+  if(info.type==='irr') return solveFiTxByIRR(info.value,info.cashFlowKey,opts);
+  return solveFiTxByPayback(info.value,info.cashFlowKey,opts);
+}
+
+function resultConstraintValueFromMetrics(info,metrics){
+  if(!info) return null;
+  if(info.key==='projIRR') return metrics.projIRR;
+  if(info.key==='projPayback') return metrics.projPayback;
+  if(info.key==='eqIRR') return metrics.eqIRR;
+  if(info.key==='eqPayback') return metrics.eqPayback;
+  return null;
+}
+
+/*
+  FiT Premium model follows the uploaded premium Excel workbook as a linked, two-stage Goal Seek:
+  Stage 1: solve/establish the base FiT-X without premium.
+  Stage 2: keep that FiT-X unchanged and solve a non-negative FiT Premium that applies only in Premium Period
+           to achieve the selected Project IRR or Project Payback target.
+*/
+function premiumGoalSeekTargetInfo(){
+  const metric=current.premiumGoalSeekMetric||'PROJECT_IRR';
+  if(metric==='PROJECT_PAYBACK') return {metric,label:'Project Payback',value:current.targetProjPayback,unit:'yr',type:'payback'};
+  return {metric:'PROJECT_IRR',label:'Project IRR',value:current.targetProjIRR,unit:'%',type:'irr'};
+}
+
+function baseProjectMetricsAtFiTx(fitx){
+  const cf=generateExcelCF(fitx,{includePremium:false,premiumOverride:0}).projCF;
+  const irr=calcIRRExcel(cf,0.15);
+  return {projIRR:irr===null?null:irr*100,projPayback:excelPayback(cf)};
+}
+
+function validatePremiumTargetAgainstBase(fitx){
+  const info=premiumGoalSeekTargetInfo();
+  const hasTarget=info.value!==null && info.value!=='' && Number.isFinite(Number(info.value));
+  if(!hasTarget) return {ok:true,info,base:baseProjectMetricsAtFiTx(fitx)};
+  if(!Number.isFinite(Number(current.premYrs)) || Number(current.premYrs)<=0){
+    return {ok:false,message:'กำหนด Premium Period มากกว่า 0 ปีก่อนคำนวณ FiT Premium'};
+  }
+  const base=baseProjectMetricsAtFiTx(fitx);
+  const target=Number(info.value);
+  if(info.type==='irr' && base.projIRR!==null && target < base.projIRR-1e-9){
+    return {ok:false,message:`Project IRR เป้าหมาย (${fmt(target,4)}%) ต่ำกว่า Project IRR ฐานก่อน Premium (${fmt(base.projIRR,4)}%) ซึ่งไม่สามารถทำได้ด้วย FiT Premium ที่ไม่ติดลบ`};
+  }
+  if(info.type==='payback' && base.projPayback!==null && target > base.projPayback+1e-9){
+    return {ok:false,message:`Project Payback เป้าหมาย (${fmt(target,4)} yr) ยาวกว่า Project Payback ฐานก่อน Premium (${fmt(base.projPayback,4)} yr) ซึ่ง FiT Premium ที่ไม่ติดลบไม่สามารถทำให้ Payback ยาวขึ้นได้`};
+  }
+  return {ok:true,info,base};
+}
+
+function solvePremiumByIRR(targetPct,fitx){
+  if(targetPct===null||targetPct===''||!Number.isFinite(Number(targetPct))) return null;
+  if(!Number.isFinite(Number(current.premYrs)) || Number(current.premYrs)<=0) return null;
+  const target=Number(targetPct)/100;
+  if(target<=-0.999999999) return null;
+  const f=x=>npv0(generateExcelCF(fitx,{includePremium:true,premiumOverride:x}).projCF,target);
+  let lo=0,flo=f(lo);
+  if(!Number.isFinite(flo)) return null;
+  if(Math.abs(flo)<1e-11) return 0;
+  if(flo>0) return null; // positive Premium cannot reduce Project IRR
+  let hi=0.5,fhi=f(hi),guard=0;
+  while(Number.isFinite(fhi)&&fhi<0&&hi<200&&guard++<50){hi*=2;fhi=f(hi);}
+  if(!Number.isFinite(fhi)||fhi<0) return null;
+  for(let i=0;i<180;i++){
+    const mid=(lo+hi)/2,fm=f(mid);
+    if(!Number.isFinite(fm)) return null;
+    if(Math.abs(fm)<1e-11) return mid;
+    if(fm>=0) hi=mid; else lo=mid;
+  }
+  return (lo+hi)/2;
+}
+
+function solvePremiumByPayback(targetYears,fitx){
+  if(targetYears===null||targetYears===''||!Number.isFinite(Number(targetYears))) return null;
+  if(!Number.isFinite(Number(current.premYrs)) || Number(current.premYrs)<=0) return null;
+  const target=Number(targetYears);
+  if(target<1 || !Number.isFinite(Number(current.life)) || target>Number(current.life)) return null;
+  const effectivePayback=premium=>{
+    const p=excelPayback(generateExcelCF(fitx,{includePremium:true,premiumOverride:premium}).projCF);
+    return p===null ? Number.POSITIVE_INFINITY : p;
+  };
+  let lo=0,plo=effectivePayback(lo);
+  if(Math.abs(plo-target)<1e-10) return 0;
+  if(plo<target) return null; // positive Premium cannot lengthen payback
+  let hi=0.5,phi=effectivePayback(hi),guard=0;
+  while(phi>target&&hi<200&&guard++<50){hi*=2;phi=effectivePayback(hi);}
+  if(phi>target) return null;
+  for(let i=0;i<180;i++){
+    const mid=(lo+hi)/2,pm=effectivePayback(mid);
+    if(pm>target) lo=mid; else hi=mid;
+  }
+  return hi;
+}
+
+function solvePremiumBySelectedTarget(fitx){
+  const t=premiumGoalSeekTargetInfo();
+  if(t.type==='irr') return solvePremiumByIRR(t.value,fitx);
+  return solvePremiumByPayback(t.value,fitx);
+}
+
+function fixedDependencyError(fitv){
+  const finance=financingAmounts();
+  const tol=1e-6;
+  if(finance.debt < -1e-9 || finance.equity < -1e-9) return 'ค่า Debt หรือ Equity ที่คำนวณได้ไม่สามารถเป็นค่าติดลบหรือมากกว่า Investment Cost รวมได้';
+
+  /*
+    Calculated algebraic identities (Investment Cost total, O&M total, Electricity Exported, Debt and Equity)
+    are no longer exposed as Fixed Variables. They are always recalculated from their true independent inputs.
+  */
+  const debtRatio=n(current.debt)/100;
+
+  if(isFixed('fitv') && !current.noFiTv){
+    const modelFitv=computeFiTVBase();
+    if(modelFitv!==null && Number.isFinite(Number(modelFitv)) && Math.abs(n(fixedState.fitv)-n(modelFitv))>tol){
+      return `FiT-V ถูก Fix ที่ ${fmt(fixedState.fitv,6)} THB/kWh แต่ Fuel/Heat Rate หรือ FiT-V Override ปัจจุบันให้ค่า ${fmt(modelFitv,6)} THB/kWh กรุณาปรับ/ปลด Fix ตัวแปรที่เกี่ยวข้อง`;
+    }
+  }
+
+  if(calcMode==='FIND_FITX' && isFixed('totalFiT') && isFixed('fitx')){
+    const expected=n(fixedState.fitx)+(fitv===null?0:n(fitv));
+    if(Math.abs(n(fixedState.totalFiT)-expected)>tol) return 'Total FiT, FiT-X และ FiT-V ที่ Fix ไว้ไม่สัมพันธ์กัน (Total FiT = FiT-X + FiT-V)';
+  }
+  return null;
+}
+
+function runCalculations(){
+  clearError();
+  const validation=validateCalculationInputs();
+  if(!validation.ok){ showError(validation.message); return {error:true}; }
+  let fitv=computeFiTV(),fitx=null,total=null,premium=0,referenceMode=false,displayFiTv=hasFiTv(),displaySplit=true;
+  let solvedByFixedResult=false;
+
+  if(fitv===null){
+    showError('Fuel Cost หน่วย THB/ton ไม่สามารถแปลงเป็น FiT-V จาก Net Heat Rate ได้โดยตรง กรุณาระบุ FiT-V Override ก่อนคำนวณ');
+    return {error:true};
+  }
+  const depErr=fixedDependencyError(fitv);
+  if(depErr){showError(depErr);return {error:true};}
+
+  const fixedResult=fixedResultConstraintInfo();
+  if(fixedResult && fixedResult.error){showError(fixedResult.message);return {error:true};}
+  // A fixed calculated return/payback is a final-model constraint. To keep it mathematically stable,
+  // the latest calculated Premium is held while FiT-X is re-solved. Users can separately Fix Premium if desired.
+  const premiumSeed=isFixed('premium')
+    ? n(fixedState.premium)
+    : (hasCalculationSnapshot && Number.isFinite(Number(calculatedSnapshot.premium)) ? n(calculatedSnapshot.premium) : 0);
+
+  // Tariff identities and fixed-result constraints.
+  // During Calculate Premium, Base FiT-X is intentionally held at the value established by the
+  // previous/base calculation. This prevents Premium-period/target edits from re-solving FiT-X.
+  if(hasNumericValue(premiumBaseFiTxOverride)){
+    fitx=Number(premiumBaseFiTxOverride);
+    total=fitx+fitv;
+  }else if(calcMode==='FIND_FITX' && isFixed('totalFiT')){
+    total=n(fixedState.totalFiT);
+    fitx=isFixed('fitx')?n(fixedState.fitx):total-fitv;
+    if(fitx<0){showError('Total FiT ที่ Fix ไว้ต่ำกว่า FiT-V ทำให้ FiT-X ติดลบ');return {error:true};}
+  }else if(calcMode==='FIND_FITX' && isFixed('fitx')){
+    fitx=n(fixedState.fitx);
+    total=fitx+fitv;
+  }else if(fixedResult){
+    fitx=solveFiTxByConstraintInfo(fixedResult,premiumSeed);
+    if(fitx===null){
+      showError(`ไม่สามารถปรับ FiT-X เพื่อคง ${fixedResult.label} = ${fmt(fixedResult.value,4)} ${fixedResult.unit} ภายใต้สมมติฐานปัจจุบันได้`);
+      return {error:true};
+    }
+    total=fitx+fitv;
+    solvedByFixedResult=true;
+  }else if(calcMode==='FIND_FITX' && templatePristine && hasNumericValue(current.refTotal)){
+    referenceMode=true;
+    total=Number(current.refTotal);
+    if(current.noFiTv){
+      fitx=total; fitv=0; displayFiTv=false;
+    }else if(current.splitProvided && hasNumericValue(current.refFiTx) && hasNumericValue(current.refFiTv)){
+      fitx=Number(current.refFiTx); fitv=Number(current.refFiTv);
+    }else{
+      // Excel Financial Model always carries an Investment Tariff / Tariff Rate (FiT-X).
+      // If a historical template does not provide an explicit FiT-X/FiT-V split, derive FiT-X
+      // from Total FiT - model FiT-V instead of hiding the FiT-X result.
+      const modelFitv = fitv===null ? 0 : fitv;
+      fitx=total-modelFitv;
+      fitv=modelFitv;
+      displaySplit=true;
+    }
+  }else if(calcMode==='FIND_FITX'){
+    const targetInfo=goalSeekTargetInfo();
+    fitx=solveFiTxBySelectedTarget();
+    if(fitx===null){
+      const valueText=(targetInfo.value===null||targetInfo.value===''||!Number.isFinite(Number(targetInfo.value)))?'ยังไม่ได้กำหนดค่าเป้าหมาย':`เป้าหมาย ${targetInfo.value} ${targetInfo.unit}`;
+      showError(`ไม่สามารถหา FiT-X จาก ${targetInfo.label} (${valueText}) ตามสูตร Financial Model ใน Excel ได้`);
+      return {error:true};
+    }
+    total=fitx+fitv;
+  }else{
+    // FIND_IRR: Total FiT is normally the explicit input. If a calculated return/payback has been Fixed,
+    // Total FiT becomes the dependent tariff and is re-solved so that the fixed result remains unchanged.
+    if(isFixed('totalFiT')){
+      total=n(fixedState.totalFiT);
+      fitx=total-fitv;
+    }else if(fixedResult){
+      fitx=solveFiTxByConstraintInfo(fixedResult,premiumSeed);
+      if(fitx===null){
+        showError(`ไม่สามารถปรับ Total FiT เพื่อคง ${fixedResult.label} = ${fmt(fixedResult.value,4)} ${fixedResult.unit} ภายใต้สมมติฐานปัจจุบันได้`);
+        return {error:true};
+      }
+      total=fitx+fitv;
+      solvedByFixedResult=true;
+    }else{
+      total=n(overrideFiT);
+      fitx=total-fitv;
+    }
+    if(fitx<0){showError('Total FiT ต่ำกว่า FiT-V ทำให้ FiT-X ติดลบ กรุณาตรวจสอบค่า');return {error:true};}
+  }
+
+  // FiT Premium is a SECOND, independent Goal Seek exactly as in the Excel premium sheet:
+  // Main Calculate establishes Base FiT-X; the dedicated Calculate Premium button holds FiT-X
+  // and changes only Premium. This prevents the same Project IRR target from re-solving FiT-X first
+  // and trivially collapsing Premium to zero.
+  if(premiumCalculationMode){
+    if(isFixed('premium')){
+      showError('FiT Premium ถูก Fix ไว้ กรุณาปลด Fix FiT Premium ก่อนใช้ Calculate Premium');
+      return {error:true};
+    }
+    const premiumInfo=premiumGoalSeekTargetInfo();
+    const hasPremiumTarget=premiumInfo.value!==null && premiumInfo.value!=='' && Number.isFinite(Number(premiumInfo.value));
+    if(!hasPremiumTarget || Number(current.premYrs)<=0){
+      showError('กรุณากำหนด Project IRR/Project Payback และ Premium Period ก่อนคำนวณ FiT Premium');
+      return {error:true};
+    }
+    const relation=validatePremiumTargetAgainstBase(fitx);
+    if(!relation.ok){ showError(relation.message); return {error:true}; }
+    premium=solvePremiumBySelectedTarget(fitx);
+    if(premium===null){
+      showError(`ไม่สามารถหา FiT Premium จาก ${premiumInfo.label} = ${premiumInfo.value} ${premiumInfo.unit} ได้ โดยคง Base FiT-X = ${fmt(fitx,4)} THB/kWh`);
+      return {error:true};
+    }
+  }else if(isFixed('premium')){
+    premium=n(fixedState.premium);
+  }else if(referenceMode && Number(current.premYrs)>0 && hasNumericValue(current.refPremium)){
+    premium=n(current.refPremium);
+  }else if(fixedResult){
+    premium=premiumSeed;
+  }else{
+    // Main Calculate is the BASE calculation. Do not Goal-Seek Premium here.
+    // A previously solved Premium is used only if it has explicitly been solved and remains valid.
+    premium=premiumSolved && hasNumericValue(current.premium) ? n(current.premium) : 0;
+  }
+
+  const cfs=generateExcelCF(fitx,{includePremium:true,premiumOverride:premium});
+  const pIRR=calcIRRExcel(cfs.projCF,0.15),eIRR=calcIRRExcel(cfs.eqCF,0.15);
+  const metrics={
+    projIRR:pIRR===null?null:pIRR*100,
+    eqIRR:eIRR===null?null:eIRR*100,
+    projPayback:excelPayback(cfs.projCF),
+    eqPayback:excelPayback(cfs.eqCF)
+  };
+
+  // Verify every fixed calculated return/payback against the final cash flow.
+  // Multiple result constraints are allowed only when one FiT-X can satisfy all of them simultaneously.
+  if(fixedResult){
+    const fixedMetrics=fixedResult.all||[fixedResult];
+    const conflicts=[];
+    for(const constraint of fixedMetrics){
+      const actual=resultConstraintValueFromMetrics(constraint,metrics);
+      const tol=1e-6;
+      if(actual===null || Math.abs(Number(actual)-Number(constraint.value))>tol){
+        conflicts.push(`${constraint.label}: Fix ${fmt(constraint.value,4)} ${constraint.unit}, คำนวณได้ ${actual===null?'N/A':fmt(actual,4)+' '+constraint.unit}`);
+      }
+    }
+    if(conflicts.length){
+      const tariffFixed=isFixed('fitx') || isFixed('totalFiT');
+      const prefix=tariffFixed
+        ? 'ค่าผลตอบแทน/Payback ที่ Fix ไว้ไม่สอดคล้องกับ Tariff และสมมติฐานที่ Fix ไว้'
+        : 'ไม่สามารถใช้ FiT-X ค่าเดียวรักษาค่าผลตอบแทน/Payback ที่ Fix ไว้ทั้งหมดพร้อมกันได้';
+      showError(`${prefix}: ${conflicts.join(' | ')} กรุณาปลด Fix ตัวแปรที่เป็นข้อจำกัดซ้ำหรือขัดแย้งกัน`);
+      return {error:true};
+    }
+  }
+
+  return {
+    error:false,fitx,fitv,totalFiT:total,premium,
+    projIRR:metrics.projIRR,
+    eqIRR:metrics.eqIRR,
+    projPayback:metrics.projPayback,
+    eqPayback:metrics.eqPayback,
+    lcoe:cfs.lcoe,debt:cfs.debt,equity:cfs.equity,energy:cfs.energyYr1,
+    referenceMode,displayFiTv,displaySplit,solvedByFixedResult
+  };
+}
+
+function markChanged(){
+  templatePristine=false;resultsDirty=true;lastResult=null;
+  if(!premiumCalculationMode && !isFixed('premium')){
+    premiumSolved=false;
+    if(current) current.premium=0;
+  }
+}
+function param(field,val){
+  if(isFixed(field))return;
+  current[field]=(String(val).trim()==='')?null:n(val);
+  capturePendingFixedInput(field);
+  markChanged();updateUI();
+}
+function paramNullable(field,val){
+  if(isFixed(field))return;
+  current[field]=(String(val).trim()==='')?null:n(val);
+  capturePendingFixedInput(field);
+  capturePendingPerformanceTarget(field);
+  markChanged();updateUI();
+}
+
+// Premium Period is a genuine user assumption.
+// If it is Fixed, the captured number of premium years is a hard constraint and the input is locked.
+// The user must uncheck Premium Period in Fixed Variables before changing the number of years.
+function premiumPeriodChange(val){
+  if(!current) return;
+  if(isFixed('premYrs')){
+    current.premYrs=Number(fixedState.premYrs);
+    setV('inp-premYrs',fixedState.premYrs);
+    return;
+  }
+  const raw=String(val).trim();
+  current.premYrs=raw===''?null:n(raw);
+  capturePendingFixedInput('premYrs');
+  markChanged();
+  updateUI();
+}
+function goalSeekMetricChanged(val){
+  current.goalSeekMetric=val||'PROJECT_IRR';
+  // Project IRR/Payback are shared project-level targets. Keep the Premium selector aligned
+  // whenever the FiT-X Goal Seek is also using a Project metric. Equity metrics remain FiT-X-only.
+  if(current.goalSeekMetric==='PROJECT_IRR' || current.goalSeekMetric==='PROJECT_PAYBACK') current.premiumGoalSeekMetric=current.goalSeekMetric;
+  markChanged();renderFixedVariablesPanel();updateUI();
+}
+function premiumGoalSeekMetricChanged(val){
+  current.premiumGoalSeekMetric=val||'PROJECT_IRR';
+  // Premium can only be solved from Project IRR or Project Payback. The selected metric and its
+  // numeric target are the same project variables used in the FiT-X Target box.
+  current.goalSeekMetric=current.premiumGoalSeekMetric;
+  markChanged();renderFixedVariablesPanel();updateUI();
+}
+function fuelParam(field,val){
+  if(isFixed(field))return;
+  current[field]=(String(val).trim()==='')?null:n(val);
+  if(current.fuelUnit==='THB/GJ' && !isFixed('fitvOverride')) current.fitvOverride=null;
+  capturePendingFixedInput(field);
+  markChanged();updateUI();
+}
+function fuelUnitChange(v){
+  if(isFixed('fuelUnit'))return;
+  current.fuelUnit=v;
+  if((v==='THB/GJ'||v==='-') && !isFixed('fitvOverride'))current.fitvOverride=null;
+  capturePendingFixedInput('fuelUnit');
+  markChanged();updateUI();
+}
+function fitvOverrideChange(v){
+  if(isFixed('fitvOverride'))return;
+  current.fitvOverride=(String(v).trim()==='')?null:n(v);
+  capturePendingFixedInput('fitvOverride');
+  markChanged();updateUI();
+}
+function setOverrideFiT(v){
+  if(isFixed('totalFiT'))return;
+  overrideFiT=(String(v).trim()==='')?null:n(v);
+  if(pendingFixedSelections.has('totalFiT') && overrideFiT!==null){ fixedState.totalFiT=overrideFiT; pendingFixedSelections.delete('totalFiT'); }
+  markChanged();updateUI();
+}
+function setCalcMode(mode){
+  if(mode===calcMode) return;
+  calcMode=mode;
+  resultsDirty=true;lastResult=null;
+  // Each mode has a different independent tariff variable. Rebuild the default Fixed Variables
+  // for the active equation set so a hidden constraint from the other mode cannot affect results.
+  fixedState={};
+  pendingFixedSelections=new Set();
+  hasCalculationSnapshot=false; calculatedSnapshot={};
+  if(current){
+    if(mode==='FIND_IRR' && (overrideFiT===null||overrideFiT===undefined) && hasNumericValue(current.refTotal)) overrideFiT=Number(current.refTotal);
+    initializeDefaultFixedInputs({blankMode:!!current.isBlank});
+  }
+  document.getElementById('overrideContainer').classList.toggle('hidden',mode!=='FIND_IRR');
+  document.getElementById('baseGoalSeekBox').classList.toggle('hidden',mode==='FIND_IRR');
+  document.getElementById('btnModeFitx').className=mode==='FIND_FITX'?'px-4 py-1.5 text-sm rounded-md font-semibold bg-white shadow-sm text-blue-600':'px-4 py-1.5 text-sm rounded-md text-slate-500 font-medium';
+  document.getElementById('btnModeIrr').className=mode==='FIND_IRR'?'px-4 py-1.5 text-sm rounded-md font-semibold bg-white shadow-sm text-blue-600':'px-4 py-1.5 text-sm rounded-md text-slate-500 font-medium';
+  syncFixedVariableUI();
+  updateUI();
+}
+
+
+function makeBlankTemplate(){
+  return {
+    id:'blank', group:'Blank', name:'Blank template', isBlank:true,
+    cap_kw:null, capex:null, opexPct:null, pf:null, deg:null, life:null,
+    debt:null, interest:null, term:null, tax:null, hol1:null, hol2:null,
+    infl:null, projIRR:null, eqIRR:null, fuelCost:null, heatRate:null,
+    premium:null, refPremium:0, premYrs:null, refTotal:null, refFiTx:null, refFiTv:null,
+    splitProvided:false, fitvOverride:null, fuelUnit:'-', sourceDetailed:false,
+    refProjIRR:null, refEqIRR:null, targetProjIRR:null, targetEqIRR:null,
+    targetProjPayback:null, targetEqPayback:null, goalSeekMetric:'PROJECT_IRR',
+    premiumGoalSeekMetric:'PROJECT_IRR',
+    other_cost:null, other_growth:null, reinvest:null, import_waste:null,
+    tipping_fee:null, tipping_growth:null, discount_rate:null, noFiTv:false
+  };
+}
+
+function initializeDefaultFixedInputs({blankMode=false}={}){
+  // Default Fixed Variables are model-aware. Populated templates capture valid independent inputs
+  // immediately. Blank template visually pre-selects the independent inputs, but keeps their fields
+  // editable until the user enters a value; that value is then captured automatically.
+  if(!current || Object.keys(fixedState).length>0 || pendingFixedSelections.size>0) return;
+  const defs=getFixableVariableDefs().filter(d=>!d.derived && !d.resultMetric);
+  const next={};
+  const pending=new Set();
+  for(const def of defs){
+    // FiT-V Override is an alternative path, not a simultaneous default with Fuel Cost/Heat Rate.
+    if(blankMode && def.key==='fitvOverride') continue;
+    const testState={...next};
+    for(const k of pending) testState[k]='__PENDING__';
+    if(fixedCompatibilityReason(def,testState)) continue;
+    const value=inputValueForFix(def);
+    if(def.key==='fuelUnit'){
+      if(value!==null&&value!==undefined&&String(value)!==''&&String(value)!=='-') next[def.key]=String(value);
+      else if(blankMode) pending.add(def.key);
+      continue;
+    }
+    if(value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value))) next[def.key]=Number(value);
+    else if(blankMode) pending.add(def.key);
+  }
+  fixedState=next;
+  pendingFixedSelections=pending;
+}
+
+function capturePendingFixedInput(key){
+  if(!pendingFixedSelections.has(key) || !current) return;
+  const def=findFixDefinition(key) || ALL_CURRENT_INPUT_FIXES.find(x=>x.key===key);
+  if(!def) return;
+  const value=inputValueForFix(def);
+  if(key==='fuelUnit'){
+    if(value!==null&&value!==undefined&&String(value)!==''&&String(value)!=='-'){
+      fixedState[key]=String(value); pendingFixedSelections.delete(key);
+    }
+    return;
+  }
+  if(value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value))){
+    fixedState[key]=Number(value); pendingFixedSelections.delete(key);
+  }
+}
+
+function capturePendingPerformanceTarget(targetKey){
+  const def=PERFORMANCE_FIXES.find(d=>d.targetKey===targetKey);
+  if(!def || !pendingFixedSelections.has(def.key)) return;
+  const value=performanceTargetValue(def);
+  if(value!==null){ fixedState[def.key]=Number(value); pendingFixedSelections.delete(def.key); }
+}
+
+function applyFixedValuesToCurrent(){
+  if(!current)return;
+  for(const def of ALL_CURRENT_INPUT_FIXES){
+    if(!isFixed(def.key)) continue;
+    if(def.key==='fuelUnit') current.fuelUnit=String(fixedState[def.key]);
+    else current[def.key]=fixedState[def.key];
+  }
+  // A fixed performance metric is the canonical version of its Target/Result pair.
+  // Keep the visible target field synchronized when that metric is used as a constraint.
+  for(const def of PERFORMANCE_FIXES){
+    if(isFixed(def.key)) current[def.targetKey]=n(fixedState[def.key]);
+  }
+  if(isFixed('totalFiT')) overrideFiT=n(fixedState.totalFiT);
+}
+
+function selectTemplate(id){
+  // Selecting a template always starts from that template's own baseline. Fixed Variables are then
+  // initialized for the newly selected model, preventing automatic locks from the previous template
+  // from silently replacing the new template assumptions.
+  fixedState={};
+  pendingFixedSelections=new Set();
+  hasCalculationSnapshot=false; calculatedSnapshot={}; lastResult=null;
+  premiumBaseFiTxAnchor=null; premiumBaseSignatureAnchor=''; premiumSolved=false;
+  clearError(); clearValidationHighlights();
+
+  if(String(id)==='blank'){
+    current=makeBlankTemplate();
+    templatePristine=true;
+    resultsDirty=true;
+    overrideFiT=null;
+    initializeDefaultFixedInputs({blankMode:true});
+    document.getElementById('customName').value='';
+    setV('input-overrideFiT',null);
+    updateUI();
+    return;
+  }
+
+  const t=templates.find(x=>x.id===Number(id)); if(!t)return;
+  current=JSON.parse(JSON.stringify(t));
+  current.refPremium=n(current.premium);
+  premiumSolved=Number(current.refPremium)>0;
+  current.goalSeekMetric=current.goalSeekMetric||'PROJECT_IRR';
+  // Premium Excel workbook logic: the base tariff is established first; Premium is then Goal-Seeked
+  // to the project-level IRR/Payback. For historical premium templates, refProjIRR is the project IRR
+  // after premium and is therefore the appropriate shared Project IRR target shown in both boxes.
+  if(Number(current.premYrs)>0 && Number(current.refPremium)>0 && hasNumericValue(current.refProjIRR)){
+    current.targetProjIRR=Number(current.refProjIRR);
+    current.premiumGoalSeekMetric='PROJECT_IRR';
+  }
+  current.targetProjPayback=current.targetProjPayback??null;
+  current.targetEqPayback=current.targetEqPayback??null;
+  current.premiumGoalSeekMetric=current.premiumGoalSeekMetric||'PROJECT_IRR';
+  current.other_cost=0;
+  current.other_growth=current.other_growth||0;
+  current.reinvest=0;
+  current.import_waste=0;
+  current.tipping_fee=0;
+  current.tipping_growth=0;
+  current.discount_rate=10.0; // matches the uploaded Excel Financial Model
+
+  overrideFiT=current.refTotal??null;
+  initializeDefaultFixedInputs({blankMode:false});
+  applyFixedValuesToCurrent();
+  templatePristine=true;
+
+  // A populated template is calculated immediately on selection. Blank remains manual.
+  resultsDirty=false;
+  document.getElementById('customName').value=current.name;
+  setV('input-overrideFiT',isFixed('totalFiT')?fixedState.totalFiT:overrideFiT);
+  updateUI();
+}
+
+function derivedValueForFix(key){
+  if(isFixed(key)) return fixedState[key];
+  const pDef=PERFORMANCE_BY_KEY[key];
+  if(pDef){
+    const pv=performanceValueForFix(pDef);
+    return pv===null ? null : pv;
+  }
+  if(!hasCalculationSnapshot || !Object.prototype.hasOwnProperty.call(calculatedSnapshot,key)) return null;
+  const v=calculatedSnapshot[key];
+  return (v===null||v===undefined||!Number.isFinite(Number(v))) ? null : Number(v);
+}
+
+function inputValueForFix(def){
+  if(def.source==='override') return hasNumericValue(overrideFiT) ? Number(overrideFiT) : null;
+  if(!current) return null;
+  const v=current[def.key];
+  if(def.key==='fuelUnit') return (v===null||v===undefined||v==='') ? null : String(v);
+  return (v===null||v===undefined||v==='') ? null : v;
+}
+
+function toggleFixedVariable(key,checked){
+  const def=findFixDefinition(key); if(!def)return;
+  clearError();
+  clearValidationHighlights();
+  if(checked){
+    const reason=fixedCompatibilityReason(def,selectedConstraintState());
+    if(reason){
+      showError(`${def.label}: ${reason}`);
+      renderFixedVariablesPanel();
+      return;
+    }
+    let value;
+    if(def.derived){
+      value=derivedValueForFix(key);
+      if(value===null||value===undefined||!Number.isFinite(Number(value))){
+        showError(`ยังไม่สามารถ Fix ${def.label} ได้ กรุณากด Calculate ให้ได้ผลลัพธ์ก่อน`);
+        renderFixedVariablesPanel();
+        return;
+      }
+      fixedState[key]=Number(value);
+      pendingFixedSelections.delete(key);
+    }else{
+      value=inputValueForFix(def);
+      if(def.key==='fuelUnit'){
+        if(value===null||value===undefined||String(value)===''||String(value)==='-'){
+          pendingFixedSelections.add(key); delete fixedState[key];
+        }else{
+          fixedState[key]=String(value); pendingFixedSelections.delete(key);
+        }
+      }else if(value===null||value===undefined||value===''||!Number.isFinite(Number(value))){
+        // Blank form: checked means "Fix this variable once a value is entered"; do not block data entry.
+        pendingFixedSelections.add(key); delete fixedState[key];
+      }else{
+        fixedState[key]=Number(value); pendingFixedSelections.delete(key);
+      }
+    }
+    if(key==='totalFiT' && isFixed(key)) overrideFiT=n(fixedState[key]);
+  }else{
+    delete fixedState[key];
+    pendingFixedSelections.delete(key);
+  }
+  markChanged();
+  renderFixedVariablesPanel();
+  syncFixedVariableUI();
+  updateUI();
+}
+
+function clearAllFixedVariables(){
+  fixedState={};
+  pendingFixedSelections=new Set();
+  markChanged();
+  renderFixedVariablesPanel();
+  syncFixedVariableUI();
+  updateUI();
+}
+
+function selectAllAllowedFixedVariables(){
+  clearError();
+  clearValidationHighlights();
+  const defs=getFixableVariableDefs();
+  // Start from the current selections. Add only variables that remain mathematically compatible
+  // with the constraints already selected. Disabled/derived-without-value variables are skipped.
+  for(const def of defs){
+    if(isSelectedForFix(def.key)) continue;
+    const reason=fixedCompatibilityReason(def,selectedConstraintState());
+    if(reason) continue;
+    if(def.derived){
+      const value=derivedValueForFix(def.key);
+      if(value===null||value===undefined||!Number.isFinite(Number(value))) continue;
+      fixedState[def.key]=Number(value);
+      pendingFixedSelections.delete(def.key);
+      continue;
+    }
+    const value=inputValueForFix(def);
+    if(def.key==='fuelUnit'){
+      if(value!==null&&value!==undefined&&String(value)!==''&&String(value)!=='-'){
+        fixedState[def.key]=String(value);
+        pendingFixedSelections.delete(def.key);
+      }else if(current && current.isBlank){
+        pendingFixedSelections.add(def.key);
+      }
+      continue;
+    }
+    if(value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value))){
+      fixedState[def.key]=Number(value);
+      pendingFixedSelections.delete(def.key);
+    }else if(current && current.isBlank){
+      // Blank template: pre-select the independent variable and capture it when the user enters a value.
+      pendingFixedSelections.add(def.key);
+    }
+  }
+  markChanged();
+  renderFixedVariablesPanel();
+  syncFixedVariableUI();
+  updateUI();
+}
+
+function fixValueAvailable(def){
+  if(def.resultMetric) return performanceFixValueAvailable(def);
+  if(def.derived){
+    const value=derivedValueForFix(def.key);
+    return value!==null && value!==undefined && Number.isFinite(Number(value));
+  }
+  const value=inputValueForFix(def);
+  if(def.key==='fuelUnit') return value!==null && value!==undefined && String(value)!=='' && String(value)!=='-';
+  return value!==null && value!==undefined && value!=='' && Number.isFinite(Number(value));
+}
+
+function fixedVariableHtml(def){
+  const selected=isSelectedForFix(def.key);
+  const state=selectedConstraintState();
+  const reason=selected?null:fixedCompatibilityReason(def,state);
+  const hasValue=fixValueAvailable(def);
+  const derivedUnavailable=!!def.derived && !hasValue;
+  const disabled=!!reason || derivedUnavailable;
+  if(disabled){
+    const why=reason || (def.resultMetric
+      ? 'ตัวแปรนี้จะเลือก Fix ได้เมื่อเป็น Target ที่กำลังใช้งาน หรือหลังจาก Calculate สำเร็จแล้ว'
+      : 'ต้องกด Calculate สำเร็จก่อน จึงจะสามารถนำค่าผลคำนวณรอบล่าสุดมา Fix ได้');
+    return `<div class="flex items-start gap-2 text-xs text-slate-400 select-none" title="${why}">
+      <input type="checkbox" disabled class="mt-0.5 rounded border-slate-300 bg-slate-200 shrink-0">
+      <span class="font-medium">${def.label}</span>
+    </div>`;
+  }
+  const hint=(!def.derived && !hasValue)?' title="เลือกไว้ล่วงหน้าได้ เมื่อกรอกค่าแล้วระบบจะ Fix ค่านั้นอัตโนมัติ"':'';
+  return `<label class="flex items-start gap-2 text-xs text-violet-900 cursor-pointer"${hint}>
+    <input id="fix-${def.key}" type="checkbox" ${selected?'checked':''} onchange="toggleFixedVariable('${def.key}',this.checked)" class="mt-0.5 rounded border-violet-300 text-violet-600">
+    <span class="font-medium">${def.label}</span>
+  </label>`;
+}
+
+
+function renderFixedVariablesPanel(){
+  normalizeLegacyFixedState();
+  const box=document.getElementById('fixedVariablesList'); if(!box)return;
+  const defs=getFixableVariableDefs();
+  box.innerHTML=`<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2">${defs.map(fixedVariableHtml).join('')}</div>`;
+}
+
+function syncFixedVariableUI(){
+  for(const def of ALL_CURRENT_INPUT_FIXES){
+    if(!def.inputId)continue;
+    const el=document.getElementById(def.inputId); if(!el)continue;
+    const constraintReason=inputConstraintLockReason(def.key);
+    const disabled=isFixed(def.key) || !!constraintReason;
+    el.disabled=disabled;
+    if(isFixed(def.key) && !constraintReason){
+      el.title=`${def.label} ถูก Fix ไว้ หากต้องการแก้ไขให้ปลด Fix ก่อน`;
+    }else{
+      el.title=constraintReason||'';
+    }
+    el.classList.toggle('bg-violet-100',isFixed(def.key));
+    el.classList.toggle('bg-slate-100',!!constraintReason && !isFixed(def.key));
+    el.classList.toggle('cursor-not-allowed',disabled);
+  }
+  // Canonical performance metric: one Fixed Variable controls both its target field and calculated result constraint.
+  for(const def of PERFORMANCE_FIXES){
+    const el=document.getElementById(def.targetInputId); if(!el)continue;
+    if(isFixed(def.key)){
+      current[def.targetKey]=n(fixedState[def.key]);
+      setV(def.targetInputId,fixedState[def.key]);
+      el.disabled=true;
+      el.title=`${def.label} ถูก Fix ไว้`;
+      el.classList.add('bg-violet-100','cursor-not-allowed');
+    }
+  }
+
+  const premiumLinkedMap={targetProjIRR:'inp-premiumLinkedProjIRR',targetProjPayback:'inp-premiumLinkedProjPayback'};
+  for(const [key,id] of Object.entries(premiumLinkedMap)){
+    const el=document.getElementById(id); if(!el)continue;
+    const perfKey=key==='targetProjPayback'?'projPayback':'projIRR';
+    const disabled=isFixed(perfKey);
+    el.disabled=disabled;
+    el.title=disabled?`${PERFORMANCE_BY_KEY[perfKey].label} ถูก Fix ไว้`:'';
+    el.classList.toggle('bg-slate-100',disabled);
+    el.classList.toggle('cursor-not-allowed',disabled);
+    el.classList.toggle('bg-white',!disabled);
+  }
+
+  const totalInput=document.getElementById('input-overrideFiT');
+  if(totalInput){
+    const totalConstraintReason=inputConstraintLockReason('totalFiT');
+    const disabled=isFixed('totalFiT') || !!totalConstraintReason;
+    totalInput.disabled=disabled;
+    totalInput.title=totalConstraintReason||'';
+    totalInput.classList.toggle('bg-violet-100',isFixed('totalFiT'));
+    totalInput.classList.toggle('bg-slate-100',!!totalConstraintReason && !isFixed('totalFiT'));
+    totalInput.classList.toggle('cursor-not-allowed',disabled);
+  }
+}
+
+function holidayDisplay(t){
+  return n(t.hol2)>0 ? `${fmt(t.hol1,0)}+${fmt(t.hol2,0)}` : fmt(t.hol1,0);
+}
+function deRatioDisplay(debt){
+  const d=n(debt); return `${fmt(d,0)}:${fmt(100-d,0)}`;
+}
+
+function clearResultDisplay(){
+  document.getElementById('res-totalFit').textContent='—';
+  const premiumGoalResult=document.getElementById('res-premium-goalseek');
+  if(premiumGoalResult) premiumGoalResult.textContent='—';
+  document.getElementById('res-period').textContent=current && current.life ? current.life : '—';
+  document.getElementById('res-fitx').textContent='—';
+  document.getElementById('res-fitv').textContent='—';
+  document.getElementById('res-premium').textContent='—';
+  document.getElementById('res-projIRR').textContent='—';
+  document.getElementById('res-eqIRR').textContent='—';
+  document.getElementById('res-projPayback').textContent='Payback: —';
+  document.getElementById('res-eqPayback').textContent='Payback: —';
+  document.getElementById('res-lcoe').textContent='—';
+}
+
+function clearValidationHighlights(){
+  document.querySelectorAll('.validation-error').forEach(el=>{
+    el.classList.remove('validation-error','border-red-400','bg-red-50','ring-1','ring-red-200');
+  });
+}
+function markValidationError(id){
+  const el=document.getElementById(id); if(!el)return;
+  el.classList.add('validation-error','border-red-400','bg-red-50','ring-1','ring-red-200');
+}
+function valueMissing(v){ return v===null||v===undefined||String(v).trim()===''||!Number.isFinite(Number(v)); }
+function validateCalculationInputs(){
+  clearValidationHighlights();
+  if(!current) return {ok:false,message:'กรอกข้อมูลให้ครบถ้วน'};
+  const required=[
+    ['cap_kw','inp-cap_kw','Installed Capacity'],['pf','inp-pf','Plant Factor'],['capex','inp-capex','CAPEX'],
+    ['opexPct','inp-opexPct','O&M'],['life','inp-life','Project Life'],['deg','inp-deg','Degradation'],
+    ['debt','inp-debt','Debt'],['interest','inp-interest','Interest Rate'],['term','inp-term','Debt Term'],
+    ['tax','inp-tax','Income Tax'],['hol1','inp-hol1','Tax Holiday'],['infl','inp-infl','Inflation'],
+    ['discount_rate','inp-discount_rate','Discount Rate']
+  ];
+  const missing=[];
+  for(const [key,id,label] of required){ if(valueMissing(current[key])){ missing.push(label); markValidationError(id); } }
+
+  const invalid=[];
+  const positive=[['cap_kw','inp-cap_kw','Installed Capacity'],['pf','inp-pf','Plant Factor'],['life','inp-life','Project Life'],['term','inp-term','Debt Term']];
+  for(const [key,id,label] of positive){ if(!valueMissing(current[key]) && Number(current[key])<=0){ invalid.push(`${label} ต้องมากกว่า 0`); markValidationError(id); } }
+  if(!valueMissing(current.debt) && (Number(current.debt)<0||Number(current.debt)>100)){ invalid.push('Debt (%) ต้องอยู่ระหว่าง 0–100'); markValidationError('inp-debt'); }
+  if(!valueMissing(current.pf) && Number(current.pf)>100){ invalid.push('Plant Factor (%) ต้องไม่เกิน 100'); markValidationError('inp-pf'); }
+  if(!valueMissing(current.opexPct) && Number(current.opexPct)<0){ invalid.push('O&M (%) ต้องไม่ติดลบ'); markValidationError('inp-opexPct'); }
+
+  if(current.fuelUnit==='THB/GJ' && !current.noFiTv){
+    if(valueMissing(current.fuelCost)){ missing.push('Fuel Cost'); markValidationError('inp-fuelCost'); }
+    if(valueMissing(current.heatRate)){ missing.push('Net Heat Rate'); markValidationError('inp-heatRate'); }
+  }
+  if(current.fuelUnit==='THB/ton' && !current.noFiTv && valueMissing(current.fitvOverride)){
+    missing.push('FiT-V Override'); markValidationError('inp-fitvOverride');
+  }
+  if(current.isBlank && (n(current.import_waste)>0 || n(current.tipping_fee)>0 || Math.abs(n(current.tipping_growth))>0)){
+    if(valueMissing(current.import_waste) || Number(current.import_waste)<=0){ missing.push('Waste'); markValidationError('inp-import_waste'); }
+    if(valueMissing(current.tipping_fee) || Number(current.tipping_fee)<0){ missing.push('Tipping Fee'); markValidationError('inp-tipping_fee'); }
+  }
+
+  const fixedResult=fixedResultConstraintInfo();
+  const referenceAvailable=(calcMode==='FIND_FITX' && templatePristine && hasNumericValue(current.refTotal));
+  if(calcMode==='FIND_FITX' && !referenceAvailable && !isFixed('fitx') && !isFixed('totalFiT') && !(fixedResult && !fixedResult.error)){
+    const info=goalSeekTargetInfo();
+    if(info.value===null||info.value===''||!Number.isFinite(Number(info.value))){
+      missing.push(info.label);
+      const p=PERFORMANCE_BY_METRIC[info.metric]; if(p) markValidationError(p.targetInputId);
+    }
+  }
+  if(calcMode==='FIND_IRR' && !isFixed('totalFiT') && !(fixedResult && !fixedResult.error)){
+    if(overrideFiT===null||overrideFiT===undefined||!hasNumericValue(overrideFiT)){ missing.push('Total FiT'); markValidationError('input-overrideFiT'); }
+  }
+
+  const premiumReference=(templatePristine && hasNumericValue(current.refTotal));
+  if(!premiumReference && !isFixed('premium') && !(fixedResult && !fixedResult.error) && Number(current.premYrs)>0){
+    const pinfo=premiumGoalSeekTargetInfo();
+    if(pinfo.value===null||pinfo.value===''||!Number.isFinite(Number(pinfo.value))){
+      missing.push(`Premium Target ${pinfo.label}`);
+      markValidationError(pinfo.type==='payback'?'inp-premiumLinkedProjPayback':'inp-premiumLinkedProjIRR');
+    }
+  }
+  if(missing.length || invalid.length){
+    const uniq=[...new Set(missing)];
+    const parts=[];
+    if(uniq.length) parts.push(`กรอกข้อมูลให้ครบถ้วน: ${uniq.join(', ')}`);
+    if(invalid.length) parts.push(invalid.join(' | '));
+    return {ok:false,message:parts.join(' | ')};
+  }
+  return {ok:true};
+}
+
+function resetCurrentTemplate(){
+  clearError(); clearValidationHighlights();
+  fixedState={}; pendingFixedSelections=new Set();
+  calculatedSnapshot={}; hasCalculationSnapshot=false; lastResult=null;
+  const id=document.getElementById('templateSelect').value || 'blank';
+  overrideFiT=null;
+  selectTemplate(id);
+}
+
+function premiumBaseFiTxForCalculation(){
+  if(!current) return {ok:false,message:'ยังไม่มีข้อมูลสำหรับคำนวณ FiT Premium'};
+  const fitv=computeFiTV();
+  if(fitv===null) return {ok:false,message:'ไม่สามารถระบุ FiT-V ได้ กรุณาตรวจสอบ Fuel Cost / Net Heat Rate / FiT-V Override'};
+
+  // Explicit tariff constraints take precedence.
+  if(isFixed('fitx') && Number.isFinite(Number(fixedState.fitx)))
+    return {ok:true,fitx:Number(fixedState.fitx),source:'Fixed FiT-X'};
+  if(calcMode==='FIND_IRR' && isFixed('totalFiT') && Number.isFinite(Number(fixedState.totalFiT)))
+    return {ok:true,fitx:Number(fixedState.totalFiT)-Number(fitv),source:'Fixed Total FiT'};
+
+  // The mathematically correct Premium workflow is sequential: first establish Base FiT-X,
+  // then hold it unchanged while Goal-Seeking Premium. The dedicated anchor is deliberately
+  // NOT changed when the user edits the Premium IRR/Payback target.
+  if(hasNumericValue(premiumBaseFiTxAnchor)){
+    const nowSig=baseModelSignature();
+    if(premiumBaseSignatureAnchor && premiumBaseSignatureAnchor!==nowSig){
+      return {
+        ok:false,
+        message:'สมมติฐานด้านเทคนิค/การเงินเปลี่ยนจากการคำนวณฐาน FiT-X ล่าสุด กรุณากด Calculate หลักก่อน 1 ครั้ง เพื่อคำนวณ FiT-X ฐานใหม่ แล้วจึงกด Calculate Premium'
+      };
+    }
+    return {ok:true,fitx:Number(premiumBaseFiTxAnchor),source:'Base FiT-X from Main Calculate'};
+  }
+
+  // Populated templates may supply an established reference base tariff even before a manual Calculate.
+  if(hasNumericValue(current.refFiTx))
+    return {ok:true,fitx:Number(current.refFiTx),source:'Template reference FiT-X'};
+  if(hasNumericValue(current.refTotal)){
+    const fx=current.noFiTv?Number(current.refTotal):Number(current.refTotal)-Number(fitv);
+    if(Number.isFinite(fx) && fx>=0) return {ok:true,fitx:fx,source:'Template reference Total FiT'};
+  }
+  if(calcMode==='FIND_IRR' && hasNumericValue(overrideFiT)){
+    const fx=Number(overrideFiT)-Number(fitv);
+    if(Number.isFinite(fx) && fx>=0) return {ok:true,fitx:fx,source:'Current Total FiT'};
+  }
+
+  // Final backward-compatible fallback for a successful calculation created before the anchor existed.
+  if(hasCalculationSnapshot && hasNumericValue(calculatedSnapshot.fitx)){
+    const snapSig=calculatedSnapshot._baseSignature||'';
+    const nowSig=baseModelSignature();
+    if(!snapSig || snapSig===nowSig) return {ok:true,fitx:Number(calculatedSnapshot.fitx),source:'Latest calculated Base FiT-X'};
+  }
+
+  return {
+    ok:false,
+    message:'ยังไม่มี FiT-X ฐานสำหรับคำนวณ Premium กรุณากด Calculate หลักให้ได้ FiT-X ก่อน แล้วจึงกด Calculate Premium'
+  };
+}
+
+function calculatePremiumNow(){
+  if(!current) return;
+  clearError();
+  clearValidationHighlights();
+  // Premium calculation uses the same linked Project IRR / Project Payback targets and the same
+  // Financial Model engine as the main Calculate button. Running it here recalculates the complete
+  // cash flow so the solved Premium is immediately reflected both in the Premium box and Results.
+  if(valueMissing(current.premYrs) || Number(current.premYrs)<=0){
+    markValidationError('inp-premYrs');
+    const st=document.getElementById('resultStatus');
+    st.textContent='ERROR';
+    st.className='text-[10px] font-bold px-2 py-1 rounded-full bg-red-100 text-red-700';
+    showError('กรอกข้อมูลให้ครบถ้วน: Premium Period (yr) ต้องมากกว่า 0');
+    return;
+  }
+  const pinfo=premiumGoalSeekTargetInfo();
+  if(pinfo.value===null || pinfo.value==='' || !Number.isFinite(Number(pinfo.value))){
+    const targetId=pinfo.type==='payback'?'inp-premiumLinkedProjPayback':'inp-premiumLinkedProjIRR';
+    markValidationError(targetId);
+    const st=document.getElementById('resultStatus');
+    st.textContent='ERROR';
+    st.className='text-[10px] font-bold px-2 py-1 rounded-full bg-red-100 text-red-700';
+    showError(`กรอกข้อมูลให้ครบถ้วน: ${pinfo.label} สำหรับคำนวณ FiT Premium`);
+    return;
+  }
+  const baseInfo=premiumBaseFiTxForCalculation();
+  if(!baseInfo.ok){
+    const st=document.getElementById('resultStatus');
+    st.textContent='ERROR';
+    st.className='text-[10px] font-bold px-2 py-1 rounded-full bg-red-100 text-red-700';
+    showError(baseInfo.message);
+    return;
+  }
+
+  // Important: Calculate Premium must NOT re-run the Base FiT-X Goal Seek with the Premium target.
+  // Hold the previously established Base FiT-X and solve only the Premium, exactly like the Excel
+  // sequence (Base FiT-X first -> Premium Goal Seek second).
+  premiumBaseFiTxOverride=Number(baseInfo.fitx);
+  premiumCalculationMode=true;
+  try{
+    calculateNow();
+  }finally{
+    premiumCalculationMode=false;
+    premiumBaseFiTxOverride=null;
+  }
+  if(lastResult && !lastResult.error){
+    current.premium=Number(lastResult.premium);
+    premiumSolved=true;
+    const pg=document.getElementById('res-premium-goalseek');
+    if(pg) pg.textContent=fmt(lastResult.premium,4);
+    document.getElementById('res-premium').textContent=`${fmt(lastResult.premium,4)} THB/kWh × ${current.premYrs} yr`;
+    const hint=document.getElementById('premiumGoalHint');
+    if(hint){
+      const p=premiumGoalSeekTargetInfo();
+      hint.textContent=`คำนวณ FiT Premium โดยคง Base FiT-X = ${fmt(baseInfo.fitx,4)} THB/kWh (${baseInfo.source}) และ Goal Seek จาก ${p.label} = ${fmt(p.value,4)} ${p.unit}; Premium ใช้ใน Annual Benefit จำนวน ${current.premYrs} ปี`;
+    }
+  }
+}
+
+function calculateNow(){
+  if(!current) return;
+  const check=validateCalculationInputs();
+  if(!check.ok){
+    resultsDirty=true; lastResult=null; clearResultDisplay();
+    const st=document.getElementById('resultStatus');
+    st.textContent='ERROR'; st.className='text-[10px] font-bold px-2 py-1 rounded-full bg-red-100 text-red-700';
+    showError(check.message);
+    document.getElementById('calcNote').textContent='กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วนก่อนคำนวณ';
+    return;
+  }
+  clearError();
+  resultsDirty=false;
+  lastResult=null;
+  updateUI();
+}
+
+function updateUI(){
+  if(!current)return;
+  const map=['cap_kw','pf','capex','opexPct','life','deg','fuelCost','heatRate','other_cost','other_growth','reinvest','premYrs','debt','interest','term','tax','hol1','infl','discount_rate','import_waste','tipping_fee','tipping_growth'];
+  for(const k of map)setV('inp-'+k,current[k]);
+  setV('inp-goalSeekMetric',current.goalSeekMetric||'PROJECT_IRR');
+  setV('inp-targetProjIRR',current.targetProjIRR);
+  setV('inp-targetProjPayback',current.targetProjPayback);
+  setV('inp-targetEqIRR',current.targetEqIRR);
+  setV('inp-targetEqPayback',current.targetEqPayback);
+  setV('inp-premiumGoalSeekMetric',current.premiumGoalSeekMetric||'PROJECT_IRR');
+
+  // FiT Premium uses the SAME project-level metrics as the Result card.
+  // - If Premium is Goal-Seeked by Project IRR, Project Payback is an OUTPUT and must mirror
+  //   the actual Project Payback shown under Project IRR in Results.
+  // - If Premium is Goal-Seeked by Project Payback, the field is the editable target; after
+  //   calculation the Result payback is expected to converge to that same value.
+  const premiumMetric=current.premiumGoalSeekMetric||'PROJECT_IRR';
+  const premiumPaybackIsTarget=premiumMetric==='PROJECT_PAYBACK';
+  const premiumIrrIsTarget=premiumMetric==='PROJECT_IRR';
+  const actualProjPayback=(lastResult && !lastResult.error && Number.isFinite(Number(lastResult.projPayback)))
+    ? Number(lastResult.projPayback)
+    : null;
+  const actualProjIRR=(lastResult && !lastResult.error && Number.isFinite(Number(lastResult.projIRR)))
+    ? Number(lastResult.projIRR)
+    : null;
+
+  setV('inp-premiumLinkedProjIRR', premiumIrrIsTarget ? current.targetProjIRR : (actualProjIRR ?? current.targetProjIRR));
+  setV('inp-premiumLinkedProjPayback', premiumPaybackIsTarget ? current.targetProjPayback : (actualProjPayback ?? current.targetProjPayback));
+
+  const premiumIRREl=document.getElementById('inp-premiumLinkedProjIRR');
+  if(premiumIRREl){
+    const disabled=!premiumIrrIsTarget || isFixed('projIRR');
+    premiumIRREl.disabled=disabled;
+    premiumIRREl.title=!premiumIrrIsTarget
+      ? 'ค่านี้เป็น Project IRR ที่คำนวณได้จาก Cash Flow เดียวกับ Results'
+      : (isFixed('projIRR')?'Project IRR ถูก Fix ไว้':'');
+    premiumIRREl.classList.toggle('bg-slate-100',disabled);
+    premiumIRREl.classList.toggle('text-slate-600',disabled);
+    premiumIRREl.classList.toggle('cursor-not-allowed',disabled);
+    premiumIRREl.classList.toggle('bg-white',!disabled);
+  }
+  const premiumPaybackEl=document.getElementById('inp-premiumLinkedProjPayback');
+  if(premiumPaybackEl){
+    const disabled=!premiumPaybackIsTarget || isFixed('projPayback');
+    premiumPaybackEl.disabled=disabled;
+    premiumPaybackEl.title=!premiumPaybackIsTarget
+      ? 'ค่านี้เป็น Project Payback ที่คำนวณได้จาก Cash Flow เดียวกับ Payback ใต้ Project IRR ใน Results'
+      : (isFixed('projPayback')?'Project Payback ถูก Fix ไว้':'');
+    premiumPaybackEl.classList.toggle('bg-slate-100',disabled);
+    premiumPaybackEl.classList.toggle('text-slate-600',disabled);
+    premiumPaybackEl.classList.toggle('cursor-not-allowed',disabled);
+    premiumPaybackEl.classList.toggle('bg-white',!disabled);
+  }
+  setV('inp-fuelUnit',current.fuelUnit);
+  setV('inp-fitvOverride',current.fitvOverride);
+  document.getElementById('baseGoalSeekBox').classList.toggle('hidden',calcMode==='FIND_IRR');
+  document.getElementById('overrideContainer').classList.toggle('hidden',calcMode!=='FIND_IRR');
+  setV('input-overrideFiT',isFixed('totalFiT')?fixedState.totalFiT:overrideFiT);
+  renderFixedVariablesPanel();
+  syncFixedVariableUI();
+
+  if(current.isBlank && templatePristine){
+    setV('disp-capexMthb',null);
+    setV('disp-opexMthb',null);
+    setV('disp-energy',null);
+    setV('disp-debtMthb',null);
+    setV('disp-equityMthb',null);
+    setV('disp-deRatio',null);
+    document.getElementById('wasteInputs').classList.remove('hidden');
+    document.getElementById('fitvHint').textContent='';
+    clearResultDisplay();
+    document.getElementById('res-period').textContent='—';
+    const st=document.getElementById('resultStatus');
+    st.textContent='';
+    st.className='';
+    document.getElementById('calcNote').textContent='';
+    clearError();
+    return;
+  }
+
+  const capex=capexMTHB(),opex=opexMTHB(),finance=financingAmounts(),debt=finance.debt,eq=finance.equity;
+  // 1 THB/W = 1 MTHB/MW; display unit investment cost while total CAPEX remains internal to cash flow.
+  setV('disp-capexMthb',Number.isFinite(Number(current.capex))?Number(current.capex).toFixed(4):null);
+  setV('disp-opexMthb',opex.toFixed(4));
+  setV('disp-energy',money(energyBase()));
+  setV('disp-debtMthb',money(debt));
+  setV('disp-equityMthb',money(eq));
+  const debtPct=capex>0?debt/capex*100:n(current.debt);
+  setV('disp-deRatio',deRatioDisplay(debtPct));
+
+  document.getElementById('wasteInputs').classList.toggle('hidden',!(current.isBlank || isWasteModel()));
+
+  const fuelBox=document.getElementById('inp-fitvOverride').closest('.p-3');
+  if(isFixed('fitv')){
+    document.getElementById('fitvHint').textContent=`FiT-V ถูก Fix ไว้ที่ ${fmt(fixedState.fitv,4)} THB/kWh`;
+  }else if(current.noFiTv){
+    document.getElementById('fitvHint').textContent='เทคโนโลยีนี้ไม่มี FiT-V: Total FiT = FiT-X';
+  }else if(current.fitvOverride!==null){
+    document.getElementById('fitvHint').textContent='';
+  }else if(current.fuelUnit==='THB/GJ'){
+    document.getElementById('fitvHint').textContent='FiT-V = Fuel Cost × Net Heat Rate ÷ 1,000,000 ตามสูตรใน Excel';
+  }else if(current.fuelUnit==='THB/ton'){
+    document.getElementById('fitvHint').textContent='THB/ton ต้องมี FiT-V Override เนื่องจากสูตร Heat Rate ใน Excel ใช้กับ THB/GJ';
+  }else{
+    document.getElementById('fitvHint').textContent='ไม่มีค่า FiT-V';
+  }
+
+  if(resultsDirty){
+    clearResultDisplay();
+    const st=document.getElementById('resultStatus');
+    st.textContent='READY';
+    st.className='text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700';
+    document.getElementById('calcNote').textContent='กรอกหรือแก้ไขข้อมูลให้ครบ แล้วกด Calculate เพื่อคำนวณผลลัพธ์';
+    clearError();
+    return;
+  }
+
+  const r=runCalculations();
+  if(r.error){
+    lastResult=null;
+    ['res-totalFit','res-fitx','res-fitv','res-projIRR','res-eqIRR','res-lcoe'].forEach(id=>document.getElementById(id).textContent='—');
+    document.getElementById('res-premium').textContent='—';
+    const premiumGoalResult=document.getElementById('res-premium-goalseek');
+    if(premiumGoalResult) premiumGoalResult.textContent='—';
+    return;
+  }
+  lastResult=r;
+  // In FIND_IRR mode a fixed calculated return/payback turns Total FiT into the dependent tariff.
+  // Keep the visible Total FiT input synchronized with the tariff solved by the model.
+  if(calcMode==='FIND_IRR' && r.solvedByFixedResult && !isFixed('totalFiT')){
+    overrideFiT=r.totalFiT;
+    setV('input-overrideFiT',overrideFiT);
+  }
+  captureCalculatedSnapshot(r);
+  renderFixedVariablesPanel();
+  syncFixedVariableUI();
+
+  document.getElementById('res-totalFit').textContent=fmt(r.totalFiT,4);
+  document.getElementById('res-period').textContent=current.life;
+  document.getElementById('res-fitx').textContent=hasNumericValue(r.fitx)?fmt(r.fitx,4):'—';
+  document.getElementById('res-fitv').textContent=(!r.displayFiTv||!r.displaySplit)?'—':fmt(r.fitv,4);
+    const premiumTargetForDisplay=premiumGoalSeekTargetInfo();
+  const premiumTargetSet=premiumTargetForDisplay.value!==null && premiumTargetForDisplay.value!=='' && Number.isFinite(Number(premiumTargetForDisplay.value));
+  const showPremiumValue=premiumSolved || isFixed('premium') || (r.referenceMode&&n(current.refPremium)>0) || premiumCalculationMode;
+  document.getElementById('res-premium').textContent=showPremiumValue?`${fmt(r.premium,4)} THB/kWh × ${current.premYrs} yr`:'—';
+  const premiumGoalResult=document.getElementById('res-premium-goalseek');
+  if(premiumGoalResult) premiumGoalResult.textContent=showPremiumValue&&Number.isFinite(Number(r.premium))?fmt(r.premium,4):'—';
+  document.getElementById('res-projIRR').textContent=r.projIRR===null?'N/A':fmt(r.projIRR,2)+'%';
+  document.getElementById('res-eqIRR').textContent=r.eqIRR===null?'N/A':fmt(r.eqIRR,2)+'%';
+  document.getElementById('res-projPayback').textContent='Payback: '+(r.projPayback===null?'> project life':fmt(r.projPayback,2)+' yr');
+  document.getElementById('res-eqPayback').textContent='Payback: '+(r.eqPayback===null?'> project life':fmt(r.eqPayback,2)+' yr');
+  document.getElementById('res-lcoe').textContent=fmt(r.lcoe,4);
+
+  // Keep the Project Payback shown in the FiT Premium box tied to the SAME calculated Project
+  // Payback displayed under Project IRR in Results. When Payback itself is the active Goal Seek
+  // target, retain the user's target value; the calculated result is validated by the same cash flow.
+  if((current.premiumGoalSeekMetric||'PROJECT_IRR')!=='PROJECT_PAYBACK' && r.projPayback!==null && Number.isFinite(Number(r.projPayback))){
+    current.targetProjPayback=Number(r.projPayback);
+    setV('inp-targetProjPayback',current.targetProjPayback);
+    setV('inp-premiumLinkedProjPayback',current.targetProjPayback);
+  }
+
+  const premiumHint=document.getElementById('premiumGoalHint');
+  if(premiumHint && !r.referenceMode){
+    const fixedResult=fixedResultConstraintInfo();
+    if(fixedResult && !fixedResult.error){
+      premiumHint.textContent=`${fixedResult.label} ถูก Fix ที่ ${fmt(fixedResult.value,4)} ${fixedResult.unit}: ระบบคง FiT Premium จากผลคำนวณล่าสุดและปรับ FiT-X เพื่อรักษาค่าที่ Fix ตามสมการ Cash Flow`;
+    }else{
+      const baseMetrics=baseProjectMetricsAtFiTx(r.fitx);
+      const targetInfo=premiumGoalSeekTargetInfo();
+      const targetTxt=(targetInfo.value===null||targetInfo.value===''||!Number.isFinite(Number(targetInfo.value)))
+        ? 'ยังไม่ได้กำหนด Project Target สำหรับ Premium'
+        : `Project Target ${targetInfo.label} = ${targetInfo.value} ${targetInfo.unit}`;
+      const baseIrr=baseMetrics.projIRR===null?'N/A':fmt(baseMetrics.projIRR,4)+'%';
+      const basePb=baseMetrics.projPayback===null?'> project life':fmt(baseMetrics.projPayback,4)+' yr';
+      premiumHint.textContent=`FiT Premium ใช้ Project IRR / Project Payback ชุดเดียวกับ FiT-X Target: FiT-X ฐาน → Project IRR ${baseIrr}, Project Payback ${basePb} → ${targetTxt} → Goal Seek Premium สำหรับ ${current.premYrs||0} ปี`;
+    }
+  }
+
+  const st=document.getElementById('resultStatus');
+  st.textContent=r.referenceMode?'REFERENCE':'CALCULATED';
+  st.className='text-[10px] font-bold px-2 py-1 rounded-full '+(r.referenceMode?'bg-emerald-100 text-emerald-700':'bg-blue-100 text-blue-700');
+
+  const activeTarget=goalSeekTargetInfo();
+  const premiumTarget=premiumGoalSeekTargetInfo();
+  const premiumText=r.referenceMode
+    ? (r.premium>0?'FiT Premium แสดงตามค่าอ้างอิงของ Template':'')
+    : (r.premium>0?`FiT Premium: คง FiT-X ฐาน แล้ว Goal Seek By ${premiumTarget.label}`:'');
+  const fixedResultForNote=fixedResultConstraintInfo();
+  const baseText=(fixedResultForNote && !fixedResultForNote.error)
+    ? `${fixedResultForNote.label} ถูก Fix ที่ ${fmt(fixedResultForNote.value,4)} ${fixedResultForNote.unit}; ระบบปรับ Tariff ที่ไม่ถูก Fix เพื่อรักษาค่านี้`
+    : (calcMode==='FIND_FITX'
+      ? (isFixed('totalFiT')?'Total FiT ถูก Fix ไว้':isFixed('fitx')?'FiT-X ถูก Fix ไว้':`FiT-X คำนวณด้วย Goal Seek By ${activeTarget.label}`)
+      : 'คำนวณผลตอบแทนจาก Total FiT ที่กำหนด');
+  document.getElementById('calcNote').textContent=r.referenceMode ? premiumText : [baseText,premiumText].filter(Boolean).join(' | ');
+}
+
+function saveCase(){
+  if(savedCases.length>=15){showError('บันทึกได้สูงสุด 15 รายการ');return;}
+  resultsDirty=false;
+  updateUI();
+  const r=runCalculations();if(r.error)return;
+  const row={
+    id:Date.now(),
+    name:document.getElementById('customName').value.trim()||current.name,
+    group:current.group,
+    capex:current.capex,opexPct:current.opexPct,pf:current.pf,deg:current.deg,life:current.life,
+    deRatio:deRatioDisplay(capexMTHB()>0?r.debt/capexMTHB()*100:current.debt),debt:current.debt,interest:current.interest,term:current.term,
+    tax:current.tax,taxHoliday:holidayDisplay(current),infl:current.infl,
+    projIRR:r.projIRR,eqIRR:r.eqIRR,total:r.totalFiT,
+    fitx:r.displaySplit?r.fitx:null,
+    fitv:(r.displaySplit&&r.displayFiTv)?r.fitv:null,
+    premium:r.premium
+  };
+  savedCases.push(row);
+  localStorage.setItem('fitCalculatorCasesV3',JSON.stringify(savedCases));
+  renderTable();
+}
+function removeCase(id){
+  savedCases=savedCases.filter(x=>x.id!==id);
+  localStorage.setItem('fitCalculatorCasesV3',JSON.stringify(savedCases));
+  renderTable();
+}
+function renderTable(){
+  const b=document.getElementById('comparisonBody');
+  document.getElementById('exportBtn').classList.toggle('hidden',savedCases.length===0);
+  if(!savedCases.length){
+    b.innerHTML='<tr><td colspan="19" class="p-10 text-center text-slate-400">ยังไม่มีข้อมูลเปรียบเทียบ</td></tr>';
+    return;
+  }
+  b.innerHTML=savedCases.map(c=>`<tr class="border-t">
+    <td class="px-3 py-2 text-left min-w-[240px] whitespace-normal"><b>${c.name}</b><br><span class="text-[10px] text-slate-400">${c.group}</span></td>
+    <td class="td">${fmt(c.capex,3)}</td>
+    <td class="td">${fmt(c.opexPct,3)}</td>
+    <td class="td">${fmt(c.pf,2)}</td>
+    <td class="td">${fmt(c.deg,2)}</td>
+    <td class="td">${fmt(c.life,0)}</td>
+    <td class="td">${c.deRatio}</td>
+    <td class="td">${fmt(c.interest,2)}</td>
+    <td class="td">${fmt(c.term,0)}</td>
+    <td class="td">${fmt(c.tax,2)}</td>
+    <td class="td">${c.taxHoliday}</td>
+    <td class="td">${fmt(c.infl,2)}</td>
+    <td class="td">${fmt(c.projIRR,2)}</td>
+    <td class="td">${fmt(c.eqIRR,2)}</td>
+    <td class="td font-bold text-indigo-700">${fmt(c.total,4)}</td>
+    <td class="td">${fmt(c.fitx,4)}</td>
+    <td class="td">${fmt(c.fitv,4)}</td>
+    <td class="td">${c.premium>0?fmt(c.premium,4):'—'}</td>
+    <td class="td"><button onclick="removeCase(${c.id})" class="text-red-500">ลบ</button></td>
+  </tr>`).join('');
+  for(const el of b.querySelectorAll('.td'))el.className+=' px-3 py-2 text-right border-l';
+}
+
+function exportCSV(){
+  const h=['Case','Group','CAPEX (THB/W)','OPEX (%)','PF (%)','Degradation (%)','Project Duration (yr)','D/E Ratio','Interest Rate (%)','Debt Term (yr)','Income Tax (%)','Tax Holiday (yr)','Inflation Rate (%)','Project IRR (%)','Equity IRR (%)','Total FiT','FiT-X','FiT-V','FiT Premium'];
+  const esc=v=>'"'+String(v??'').replaceAll('"','""')+'"';
+  const rows=savedCases.map(c=>[c.name,c.group,c.capex,c.opexPct,c.pf,c.deg,c.life,c.deRatio,c.interest,c.term,c.tax,c.taxHoliday,c.infl,c.projIRR,c.eqIRR,c.total,c.fitx,c.fitv,c.premium]);
+  const blob=new Blob(['\uFEFF'+[h,...rows].map(r=>r.map(esc).join(',')).join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='FiT_Calculator_Comparison.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* Internal formula regression tests against the uploaded Excel workbook values. */
+function excelFormulaSelfTest(){
+  const backup=current ? JSON.parse(JSON.stringify(current)) : null;
+  const pristine=templatePristine;
+  const fixedBackup=JSON.parse(JSON.stringify(fixedState));
+  const snapshotBackup=JSON.parse(JSON.stringify(calculatedSnapshot));
+  const snapshotFlagBackup=hasCalculationSnapshot;
+  fixedState={};
+  calculatedSnapshot={};
+  hasCalculationSnapshot=false;
+
+  // Financial Model (สอนใช้): regression against the uploaded Excel workbook and the reference screenshot
+  current={
+    group:'Solar',noFiTv:true,cap_kw:1000,pf:16,life:25,deg:-0.8,capex:24,opexPct:1.5,
+    other_cost:0,other_growth:0,reinvest:0,debt:60,interest:6.5,term:10,tax:20,hol1:8,hol2:0,
+    infl:2.5,discount_rate:10,premium:0,premYrs:0,import_waste:0,tipping_fee:0,tipping_growth:0
+  };
+  let c=generateExcelCF(2.1588,{includePremium:true,premiumOverride:0});
+  let p=calcIRRExcel(c.projCF,0.15),e=calcIRRExcel(c.eqCF,0.15);
+  const pb1=excelPayback(c.projCF), eb1=excelPayback(c.eqCF);
+  const t1=Math.abs(p-0.07981761558723588)<1e-9 && Math.abs(pb1-9.869486945467077)<1e-9 && Math.abs(e-0.08827172461993005)<1e-9 && Math.abs(eb1-12.636677621214842)<1e-9 && Math.abs(c.lcoe-2.359128169241299)<1e-10 && Math.abs(c.energyYr1-1401.6)<1e-10;
+
+  // Financial Model: regression against the waste/tipping-fee worksheet without premium
+  current={
+    group:'MSW',noFiTv:false,cap_kw:1000,pf:65,life:20,deg:0,capex:160.12,opexPct:11.5,
+    other_cost:0,other_growth:0,reinvest:0,debt:60,interest:6.5,term:10,tax:20,hol1:8,hol2:0,
+    infl:1.13,discount_rate:10,premium:0,premYrs:0,import_waste:14887.5909,tipping_fee:500,tipping_growth:10
+  };
+  c=generateExcelCF(5.36126472128622,{includePremium:true,premiumOverride:0});
+  p=calcIRRExcel(c.projCF,0.15);e=calcIRRExcel(c.eqCF,0.15);
+  const t2=Math.abs(p-0.09992412708176324)<1e-9 && Math.abs(e-0.12270971489034976)<1e-8 && Math.abs(c.lcoe-6.788537088549739)<1e-10;
+
+  // Financial Model - premium workbook: P6 premium applies in years 1..8 (C31:J31).
+  // The Premium Goal Seek uses the SAME Project target fields as the main target box.
+  current={
+    group:'MSW',noFiTv:false,cap_kw:1000,pf:65,life:20,deg:0,capex:160.12,opexPct:11.5,
+    other_cost:0,other_growth:0,reinvest:0,debt:60,interest:6.5,term:10,tax:20,hol1:8,hol2:0,
+    infl:1.13,discount_rate:10,premium:0,premYrs:8,import_waste:14887.5909,tipping_fee:500,tipping_growth:10,
+    goalSeekMetric:'PROJECT_IRR',targetProjIRR:9.992412708176324,targetProjPayback:5.000639630357452,
+    premiumGoalSeekMetric:'PROJECT_IRR'
+  };
+  const linkedBaseFiTx=solveFiTxBySelectedTarget();
+  // Reuse the same Project IRR field as the Premium target, with FiT-X held at the Excel base tariff.
+  current.targetProjIRR=16.959913711403596;
+  current.premiumGoalSeekMetric='PROJECT_IRR';
+  const premiumByIRR=solvePremiumBySelectedTarget(linkedBaseFiTx);
+  current.premiumGoalSeekMetric='PROJECT_PAYBACK';
+  const premiumByPayback=solvePremiumBySelectedTarget(linkedBaseFiTx);
+  c=generateExcelCF(linkedBaseFiTx,{includePremium:true,premiumOverride:premiumByIRR});
+  p=calcIRRExcel(c.projCF,0.15);
+  const pbPremium=excelPayback(c.projCF);
+  const t3=Math.abs(linkedBaseFiTx-5.36126472128622)<1e-8 && Math.abs(premiumByIRR-2.21040066869254)<1e-8 && Math.abs(premiumByPayback-2.21040066869254)<1e-8 && Math.abs(p-0.16959913711403596)<1e-8 && Math.abs(pbPremium-5.000639630357452)<1e-8;
+
+  // Fixed calculated Payback/IRR constraints: after the first calculation, the model can re-solve FiT-X
+  // so the selected result remains constant while another assumption changes.
+  current={
+    group:'Solar',noFiTv:true,cap_kw:1000,pf:16,life:25,deg:-0.8,capex:26,opexPct:1.5,
+    other_cost:0,other_growth:0,reinvest:0,debt:60,interest:6.5,term:10,tax:20,hol1:8,hol2:0,
+    infl:2.5,discount_rate:10,premium:0,premYrs:0,import_waste:0,tipping_fee:0,tipping_growth:0
+  };
+  fixedState={projPayback:9.869486945467077};
+  const fp=fixedResultConstraintInfo();
+  const fxPb=solveFiTxByConstraintInfo(fp,0);
+  c=generateExcelCF(fxPb,{includePremium:false,premiumOverride:0});
+  const fixedPbResult=excelPayback(c.projCF);
+  fixedState={eqPayback:12.636677621214842};
+  const fe=fixedResultConstraintInfo();
+  const fxEqPb=solveFiTxByConstraintInfo(fe,0);
+  c=generateExcelCF(fxEqPb,{includePremium:false,premiumOverride:0});
+  const fixedEqPbResult=excelPayback(c.eqCF);
+  const t4=Math.abs(fixedPbResult-9.869486945467077)<1e-7 && Math.abs(fixedEqPbResult-12.636677621214842)<1e-7;
+
+  // Multiple calculated constraints captured from the same baseline are mathematically consistent
+  // when evaluated against the same tariff/cash flow (used by Select All after the first Calculate).
+  current={
+    group:'Solar',noFiTv:true,cap_kw:1000,pf:16,life:25,deg:-0.8,capex:24,opexPct:1.5,
+    other_cost:0,other_growth:0,reinvest:0,debt:60,interest:6.5,term:10,tax:20,hol1:8,hol2:0,
+    infl:2.5,discount_rate:10,premium:0,premYrs:0,import_waste:0,tipping_fee:0,tipping_growth:0
+  };
+  c=generateExcelCF(2.1588,{includePremium:false,premiumOverride:0});
+  const basePIrr=calcIRRExcel(c.projCF,0.15)*100, baseEIrr=calcIRRExcel(c.eqCF,0.15)*100;
+  const basePPb=excelPayback(c.projCF), baseEPb=excelPayback(c.eqCF);
+  fixedState={projIRR:basePIrr,projPayback:basePPb,eqIRR:baseEIrr,eqPayback:baseEPb};
+  const multi=fixedResultConstraintInfo();
+  const t5=!!multi && Array.isArray(multi.all) && multi.all.length===4 && multi.all.every(info=>{
+    const metrics={projIRR:basePIrr,projPayback:basePPb,eqIRR:baseEIrr,eqPayback:baseEPb};
+    const actual=resultConstraintValueFromMetrics(info,metrics);
+    return actual!==null && Math.abs(actual-info.value)<1e-9;
+  });
+
+  // Regression: a null Premium Base FiT-X override must mean "no override", never FiT-X = 0.
+  const t6=!hasNumericValue(null) && !hasNumericValue('') && hasNumericValue(0) && hasNumericValue(5.36126472128622);
+
+  // Dedicated Premium Goal Seek must hold Base FiT-X. Changing Project IRR to a NEW target
+  // therefore changes Premium, not Base FiT-X.
+  current={
+    group:'MSW',noFiTv:false,cap_kw:1000,pf:65,life:20,deg:0,capex:160.12,opexPct:11.5,
+    other_cost:0,other_growth:0,reinvest:0,debt:60,interest:6.5,term:10,tax:20,hol1:8,hol2:0,
+    infl:1.13,discount_rate:10,premium:0,premYrs:8,import_waste:14887.5909,tipping_fee:500,tipping_growth:10,
+    targetProjIRR:16.959913711403596,premiumGoalSeekMetric:'PROJECT_IRR'
+  };
+  const heldBase=5.36126472128622;
+  const solvedPremium=solvePremiumBySelectedTarget(heldBase);
+  c=generateExcelCF(heldBase,{includePremium:true,premiumOverride:solvedPremium});
+  p=calcIRRExcel(c.projCF,0.15);
+  const t7=Math.abs(solvedPremium-2.21040066869254)<1e-8 && Math.abs(p*100-16.959913711403596)<1e-8;
+
+  console.log('Excel formula regression:',{teachingSheet:t1,financialModel:t2,premiumModel:t3,fixedResultConstraints:t4,multiFixedSnapshot:t5,nullOverrideGuard:t6,premiumTwoStage:t7});
+  console.assert(t1&&t2&&t3&&t4&&t5&&t6&&t7,'Excel formula regression failed');
+
+  current=backup; templatePristine=pristine; fixedState=fixedBackup;
+  calculatedSnapshot=snapshotBackup; hasCalculationSnapshot=snapshotFlagBackup;
+  return t1&&t2&&t3&&t4&&t5&&t6&&t7;
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const sel=document.getElementById('templateSelect');
+  const blankOption=document.createElement('option');
+  blankOption.value='blank';
+  blankOption.textContent='Blank template';
+  sel.appendChild(blankOption);
+  templates.forEach(t=>{
+    const o=document.createElement('option');
+    o.value=t.id;
+    o.textContent=`[${t.group}] ${t.name}`;
+    sel.appendChild(o);
+  });
+  excelFormulaSelfTest();
+  sel.value='blank';
+  resultsDirty=true;
+  selectTemplate('blank');
+  renderTable();
+});
+</script>
+</body>
+</html>
